@@ -8,17 +8,17 @@ project(LittleRGS)
 set(CMAKE_CXX_STANDARD 17)  
   
 # 添加包含目录（如果有头文件目录需要添加）  
-include_directories("C:/Program Files (x86)/Eigen3/include/eigen3")  
+include_directories("C:/Eigen3/include/eigen3")  
   
 # 添加源文件  
 set(SOURCE_FILES  
-    
+    "src/Application.cpp"
  )  
 
 # 添加头文件
 set(HEADER_FILES  
-    
-)  
+    "src/DrawLine.h"
+ "src/Application.h" "src/Window.h" "src/WindowsWindow.h")  
 
 # 将源文件编译成可执行文件  
 add_executable(MyExecutable ${SOURCE_FILES} ${HEADER_FILES})  
