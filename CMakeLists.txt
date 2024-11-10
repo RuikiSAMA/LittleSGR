@@ -13,7 +13,7 @@ include_directories("libs/eigen3")
 # 添加源文件  
 set(SOURCE_FILES  
     "src/Application.cpp"
-  "src/Window.cpp" "src/WindowsWindow.cpp")  
+  "src/Window.cpp" "src/WindowsWindow.cpp" "src/main.cpp")  
 
 # 添加头文件
 set(HEADER_FILES  

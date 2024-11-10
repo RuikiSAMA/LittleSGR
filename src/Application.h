@@ -1,25 +1,28 @@
 #pragma once
+#include"Window.h"
 #include <string>
 
 namespace LittleSGR {
     class Application {
     public:
-        Application(std::string name, const int width, const int height) {}
+        Application(std::string name, const int width, const int height);
 
-        ~Application() {}
+        ~Application();
 
-        void Run() {}
+        void Run();
 
     private:
-        void Application::Init() {}
+        void Application::Init();
 
-        void Application::Terminate() {}
+        void Application::Terminate();
 
-        void Application::OnUpdate() {}
+        void Application::OnUpdate();
 
     private:
         std::string m_Name;
         int m_Width;
-        int m_Height
+        int m_Height;
+
+        Window* m_Window;
     };
 }
