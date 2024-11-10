@@ -5,6 +5,8 @@ namespace LittleSGR {
 	Window::Window(std::string title, int width, int height) 
 	:m_Title(title), m_Width(width), m_Height(height){}
 
+	Window::~Window(){}
+
 	void Window::Init(){
 		WindowsWindow::Init();
 	}

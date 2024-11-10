@@ -7,7 +7,7 @@ namespace LittleSGR {
 	class WindowsWindow : public Window {
 	public:
 		WindowsWindow(const std::string title, const int width, const int height);
-		~WindowsWindow();
+		~WindowsWindow() override;
 
 		virtual void Show() const override;
 

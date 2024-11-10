@@ -10,17 +10,18 @@ namespace LittleSGR {
 
 	void Application::Run()
 	{
-		bool running = true;
-		while (running) {
+		while (!m_Window->Closed()) {
 			OnUpdate();
-		}
+		}           
 	}
 
 	void Application::Init() {
 		Window::Init();
+		m_Window = Window::Create(m_Name, m_Width, m_Height);
 	}
 
 	void Application::Terminate() {
+		delete m_Window;
 		Window::Terminate();
 	}
 
