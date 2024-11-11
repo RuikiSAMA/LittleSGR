@@ -18,4 +18,8 @@ namespace LittleSGR {
 	Window* Window::Create(const std::string title, const int width, const int height) {
 		return new WindowsWindow(title, width, height);
 	}
+
+	void Window::RunMessageLoop() {
+		WindowsWindow::RunMessageLoop();
+	}
 }
