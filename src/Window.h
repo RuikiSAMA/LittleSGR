@@ -19,10 +19,12 @@ namespace LittleSGR {
 
 		bool Closed() const { return m_Closed; };
 
+
 	public:
 		static void Init();
 		static void Terminate();
 		static Window* Create(const std::string title, const int width, const int height);	
+		static void RunMessageLoop();
 		// 创建工厂类对象并返回指向 WindowsWindow 的 Window 类型指针
 
 	protected:

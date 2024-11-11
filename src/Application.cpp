@@ -12,6 +12,8 @@ namespace LittleSGR {
 	{
 		while (!m_Window->Closed()) {
 			OnUpdate();
+
+			Window::RunMessageLoop();
 		}           
 	}
 
@@ -22,6 +24,8 @@ namespace LittleSGR {
 
 	void Application::Terminate() {
 		delete m_Window;
+		// 结束程序需要在调用 Terminate() 之前删除 m_Window 否则内存泄露
+
 		Window::Terminate();
 	}
 

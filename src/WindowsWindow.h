@@ -11,6 +11,8 @@ namespace LittleSGR {
 
 		virtual void Show() const override;
 
+		static void RunMessageLoop();
+
 	public:
 		static void Init();
 		static void Terminate();
@@ -24,7 +26,7 @@ namespace LittleSGR {
 	private:
 		HWND m_Handle;
 		HDC m_MemoryDC;
-		unsigned char* m_Buffer;
+		VOID* m_Buffer;
 		static bool s_Inited;
 	};
 }
