@@ -1,5 +1,5 @@
 #pragma once
-#include"Window.h"
+#include"WindowsWindow.h"
 #include <string>
 
 namespace LittleSGR {
@@ -23,6 +23,6 @@ namespace LittleSGR {
         int m_Width;
         int m_Height;
 
-        Window* m_Window;
+        WindowsWindow* m_Window;
     };
 }

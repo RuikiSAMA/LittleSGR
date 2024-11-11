@@ -1,17 +1,19 @@
 #pragma once
-#include "Window.h"
 #include <string>
 #include <Windows.h>
+#define KEY_MAX_COUNT 128
 
 namespace LittleSGR {
-	class WindowsWindow : public Window {
+	class WindowsWindow{
 	public:
 		WindowsWindow(const std::string title, const int width, const int height);
-		~WindowsWindow() override;
-
-		virtual void Show() const override;
+		~WindowsWindow();
 
 		static void RunMessageLoop();
+
+		void Show() const;
+		bool IsClosed();
+		bool GetKeyState(int i);
 
 	public:
 		static void Init();
@@ -23,10 +25,22 @@ namespace LittleSGR {
 
 		static LRESULT CALLBACK WndProc(const HWND hWnd, const UINT msgID, const WPARAM wParam, const LPARAM lParam);
 
+		static void KeyEvent(WindowsWindow* wd, const WPARAM wParam, const bool state);
+
 	private:
+		bool m_Close = true;
+
+		std::string m_Title;
+		int m_Width;
+		int m_Height;
+
 		HWND m_Handle;
+
 		HDC m_MemoryDC;
 		VOID* m_Buffer;
-		static bool s_Inited;
+
+		static bool s_Inited;	// ³õÊ¼»¯×´Ì¬
+
+		bool m_Keys[KEY_MAX_COUNT];
 	};
 }
