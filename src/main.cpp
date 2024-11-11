@@ -1,7 +1,5 @@
 #include<iostream>
 #include"Application.h"
-#include "WindowsWindow.h"
-#include "Window.h"
 
 using namespace std;
 using namespace LittleSGR;

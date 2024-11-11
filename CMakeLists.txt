@@ -13,12 +13,12 @@ include_directories("libs/eigen3")
 # 添加源文件  
 set(SOURCE_FILES  
     "src/Application.cpp"
-  "src/Window.cpp" "src/WindowsWindow.cpp" "src/main.cpp")  
+   "src/WindowsWindow.cpp" "src/main.cpp")  
 
 # 添加头文件
 set(HEADER_FILES  
     "src/DrawLine.h"
- "src/Application.h" "src/Window.h" "src/WindowsWindow.h" "src/Base.h")  
+ "src/Application.h"  "src/WindowsWindow.h" "src/Base.h")  
 
 # 将源文件编译成可执行文件  
 add_executable(MyExecutable ${SOURCE_FILES} ${HEADER_FILES})  

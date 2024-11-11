@@ -1,5 +1,4 @@
 #include "WindowsWindow.h"
-#include "Window.h"
 #include "Base.h"
 #include <iostream>
 
@@ -7,9 +6,12 @@
 #define WINDOW_ENTER_NAME "enter"
 
 namespace LittleSGR {
-	WindowsWindow::WindowsWindow(const std::string title, const int width, const int height) 
-		:Window(title, width, height) {
-		ASSERT((s_Inited), " δע�ᴰ���಻�ܴ�������");	// ���ԣ�������Ϊ0���жϳ���
+	WindowsWindow::WindowsWindow(const std::string title, const int width, const int height)
+		:m_Title(title), m_Width(width), m_Height(height) {
+		ASSERT((s_Inited), "未初始化");	// ���ԣ�������Ϊ0���жϳ���
+
+		memset(m_Keys, false, KEY_MAX_COUNT);
+
 		/*
 		����
 		typedef struct tagRECT {
@@ -59,7 +61,7 @@ namespace LittleSGR {
 			CW_USEDEFAULT, width, height, NULL, NULL, GetModuleHandle(NULL), NULL);
 
 		ASSERT(m_Handle != nullptr);
-		m_Closed = false;
+		m_Close = false;
 
 		/*
 		Ϊ
@@ -154,7 +156,7 @@ namespace LittleSGR {
 		void *memset(
 		   void *dest,	// 指向目标的指针
 		   int c,	// 需要设置的字符
-		   size_t count	// 字符数
+		   size_t count	// 设置的字符数
 		);
 		*/
 		memset(m_Buffer, 0, size);
@@ -283,6 +285,7 @@ namespace LittleSGR {
 	}
 
 	void WindowsWindow::RunMessageLoop(){
+		std::cout << "loop!";
 		MSG message;
 		while (GetMessage(&message, NULL, 0, 0)) {
 				// 获取消息
@@ -304,10 +307,36 @@ namespace LittleSGR {
 		switch (msgID)
 		{
 		case WM_DESTROY:
-			window->m_Closed = true;
+			window->m_Close = true;
+			return 0;
+		case WM_KEYDOWN:	// 按键按下
+			KeyEvent(window, wParam, 1);
+			return 0;
+		case WM_KEYUP:	// 按键抬起
+			KeyEvent(window, wParam, 0);
 			return 0;
 		default:
 			return DefWindowProc(hWnd, msgID, wParam, lParam);
 		}
+	}
+
+	void WindowsWindow::KeyEvent(WindowsWindow* wd, const WPARAM wParam, const bool state) {
+		if (wParam >= '0' && wParam <= '9') {
+			wd->m_Keys[wParam] = state;
+			std::cout << wParam << std::endl;
+			return;
+		}
+		if (wParam >= 'A' && wParam <= 'Z') {
+			wd->m_Keys[wParam] = state;
+			return;
+		}
+	}
+
+	bool WindowsWindow::GetKeyState(int i) {
+		return m_Keys[i];
+	}
+
+	bool WindowsWindow::IsClosed() {
+		return m_Close;
 	}
 }
