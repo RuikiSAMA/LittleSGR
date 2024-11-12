@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <Windows.h>
+#include "FrameBuffer.h"
 #define KEY_MAX_COUNT 128
 
 namespace LittleSGR {
@@ -13,7 +14,8 @@ namespace LittleSGR {
 
 		void Show() const;
 		bool IsClosed();
-		bool GetKeyState(int i);
+		bool GetKeyState(const int i);
+		void DrawFrameBuffer(const FrameBuffer framebuffer);
 
 	public:
 		static void Init();
@@ -37,7 +39,7 @@ namespace LittleSGR {
 		HWND m_Handle;
 
 		HDC m_MemoryDC;
-		VOID* m_Buffer;
+		unsigned char* m_Buffer;
 
 		static bool s_Inited;	// ³õÊ¼»¯×´Ì¬
 

@@ -139,7 +139,7 @@ namespace LittleSGR {
 		HBITMAP newBitmap;
 
 		newBitmap = CreateDIBSection(m_MemoryDC, (BITMAPINFO*)&biHeader,
-			DIB_RGB_COLORS, &m_Buffer, nullptr, 0);
+			DIB_RGB_COLORS,(void**) &m_Buffer, nullptr, 0);
 		// 创建位图并与 m_MemoryDC 关联，并返回位图给 newBitmap 
 		// m_Buffer 为指向图像缓冲区的指针，使用 m_Buffer 来操作图像缓冲区中的位图
 
@@ -332,11 +332,29 @@ namespace LittleSGR {
 		}
 	}
 
-	bool WindowsWindow::GetKeyState(int i) {
+	bool WindowsWindow::GetKeyState(const int i) {
 		return m_Keys[i];
 	}
 
 	bool WindowsWindow::IsClosed() {
 		return m_Close;
 	}
+
+	void WindowsWindow::DrawFrameBuffer(const FrameBuffer framebuffer) {
+		int width = (framebuffer.GetWidth() > m_Width ? m_Width : framebuffer.GetWidth());
+		int height = (framebuffer.GetHeight() > m_Height ? m_Height : framebuffer.GetHeight());
+		// 确保渲染画面不会超过窗口大小
+		for (int i = 0; i < height; i++) {
+			for (int j = 0; j < width; j++) {
+				const int m_bufferIndex = (i * height + j) * 3;
+				//	 m_buffer 相邻三个位置为一个单位表示g,b,r，因此vec[]数组的索引需要 *3
+
+				m_Buffer[m_bufferIndex] = (unsigned char)framebuffer.GetColorbuffer(i, j).z();
+
+			}
+		}
+		
+
+	}
+
 }
