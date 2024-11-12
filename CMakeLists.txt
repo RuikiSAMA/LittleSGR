@@ -13,11 +13,11 @@ include_directories("lib/eigen3")
 # 添加源文件  
 set(SOURCE_FILES  
     "src/Application.cpp"
-   "src/WindowsWindow.cpp" "src/main.cpp" "src/FrameBuffer.cpp")  
+   "src/WindowsWindow.cpp" "src/main.cpp" "src/FrameBuffer.cpp" "src/GraphicsPipeline.cpp")  
 
 # 添加头文件
 set(HEADER_FILES  
-    "src/DrawLine.h"
+    "src/GraphicsPipeline.h"
  "src/Application.h"  "src/WindowsWindow.h" "src/Base.h" "src/FrameBuffer.h")  
 
 # 将源文件编译成可执行文件  

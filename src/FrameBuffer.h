@@ -7,13 +7,14 @@ namespace LittleSGR {
 	class FrameBuffer {
 	public:
 		FrameBuffer(const int width, const int height);
+		FrameBuffer(const FrameBuffer& thant);
 		~FrameBuffer();
 		void SetColorbuffer(const int x, const int y, const Vector3d rgb);
-		Vector3d GetColorbuffer(const int x, const int y) const;
 		void SetZBuffer(const int x, const int y, const float z);
+		Vector3d GetColorbuffer(const int x, const int y) const;
 		float GetZBuffer(const int x, const int y) const;
-		int GetWidth();
-		int GetHeight();
+		int GetWidth() const;
+		int GetHeight() const;
 
 	private:
 		int GetPixelIndex(const int x, const int y) const;

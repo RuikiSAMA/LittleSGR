@@ -1,5 +1,6 @@
 #include "FrameBuffer.h"
 #include "Base.h"
+#include <iostream>
 using namespace Eigen;
 
 #define COLOR_BLACK 0
@@ -7,7 +8,7 @@ using namespace Eigen;
 
 namespace LittleSGR {
 	FrameBuffer::FrameBuffer(const int width, const int height)
-		:m_Width(width), m_Height(height){
+		:m_Width(width), m_Height(height) {
 		m_Size = m_Width * m_Height;
 		m_ColorBuffer = new Vector3d[m_Size];
 		m_ZBuffer = new float[m_Size];
@@ -15,15 +16,26 @@ namespace LittleSGR {
 		ClearZBuffer();
 	}
 
+	FrameBuffer::FrameBuffer(const FrameBuffer& other) 	//	浅拷贝害人不浅！TAT  --2024.11.12 23:05
+		: m_Width(other.m_Width),
+		m_Height(other.m_Height),
+		m_Size(other.m_Size),
+		m_ColorBuffer(new Eigen::Vector3d[m_Size]),
+		m_ZBuffer(new float[m_Size]) {
+		std::memcpy(m_ColorBuffer, other.m_ColorBuffer, m_Size * sizeof(Eigen::Vector3d));	// 深拷贝
+		std::memcpy(m_ZBuffer, other.m_ZBuffer, m_Size * sizeof(float));
+	}
+
 	FrameBuffer::~FrameBuffer() {
 		delete[] m_ColorBuffer;
-		m_ColorBuffer = nullptr;
 		delete[] m_ZBuffer;
+		m_ColorBuffer = nullptr;
 		m_ZBuffer = nullptr;
 	}
 
 	void FrameBuffer::SetColorbuffer(const int x, const int y, const Vector3d rgb) {
 		int i = GetPixelIndex(x, y);
+		std::cout << i << std::endl;
 		if (i >= 0 && i < m_Size)
 			m_ColorBuffer[i] = rgb;
 		else
@@ -54,11 +66,11 @@ namespace LittleSGR {
 			ASSERT(0);
 	}
 
-	int FrameBuffer::GetHeight() {
+	int FrameBuffer::GetHeight() const {
 		return m_Height;
 	}
 
-	int FrameBuffer::GetWidth() {
+	int FrameBuffer::GetWidth() const {
 		return m_Width;
 	}
 

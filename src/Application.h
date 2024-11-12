@@ -3,26 +3,26 @@
 #include <string>
 
 namespace LittleSGR {
-    class Application {
-    public:
-        Application(std::string name, const int width, const int height);
+	class Application {
+	public:
+		Application(std::string name, const int width, const int height);
 
-        ~Application();
+		~Application();
 
-        void Run();
+		void Run();
 
-    private:
-        void Application::Init();
+	private:
+		void Application::Init();
 
-        void Application::Terminate();
+		void Application::Terminate();
 
-        void Application::OnUpdate();
+		void Application::OnUpdate();
 
-    private:
-        std::string m_Name;
-        int m_Width;
-        int m_Height;
+	private:
+		std::string m_Name;
+		int m_Width;
+		int m_Height;
 
-        WindowsWindow* m_Window;
-    };
+		WindowsWindow* m_Window;
+	};
 }

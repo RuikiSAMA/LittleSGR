@@ -6,7 +6,7 @@ using namespace LittleSGR;
 
 int main() {
 	cout << "hello" << endl;
-	Application app("LittleSGR", 400, 300);
+	Application app("LittleSGR", 500, 400);
 	app.Run();
 	return 0;
 }

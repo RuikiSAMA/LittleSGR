@@ -1,6 +1,8 @@
 #include <iostream>
 #include"Application.h"
 #include"InputCode.h"
+#include<eigen/dense>
+using namespace Eigen;
 
 namespace LittleSGR {
 	Application::Application(std::string name, const int width, const int height)
@@ -20,12 +22,14 @@ namespace LittleSGR {
 			OnUpdate();
 
 			WindowsWindow::RunMessageLoop();
-		}           
+		}
 	}
 
 	void Application::OnUpdate()
 	{
+		FrameBuffer fb(m_Width, m_Height);
 
+		m_Window->DrawFrameBuffer(fb);
 	}
 
 	Application::~Application() {
@@ -34,7 +38,7 @@ namespace LittleSGR {
 
 	void Application::Terminate() {
 		delete m_Window;
-		// 结束程序需要在调用 Terminate() 之前删除 m_Window 否则内存泄露
+		// 缁撴潫绋嬪簭闇�瑕佸湪璋冪敤 Terminate() 涔嬪墠鍒犻櫎 m_Window 鍚﹀垯鍐呭瓨娉勯湶
 
 		WindowsWindow::Terminate();
 	}

@@ -76,13 +76,13 @@ namespace LittleSGR {
 		SetProp(m_Handle, WINDOW_ENTER_NAME, this);
 		/* 为窗口添加具体窗口对象的指针，因为窗口过程函数为静态函数，
 			因此需要传入窗口对象的指针来为具体的窗口实现交互*/
-		
 
-		/*通过句柄获取窗口的 设备上下文DC
-		HDC GetDC(
-		  [in] HWND hWnd	// 若值为NULL则获取整个屏幕设备的DC
-		);
-		*/
+
+			/*通过句柄获取窗口的 设备上下文DC
+			HDC GetDC(
+			  [in] HWND hWnd	// 若值为NULL则获取整个屏幕设备的DC
+			);
+			*/
 		HDC windowDC = GetDC(m_Handle);
 		// 获取窗口的 设备上下文DC
 
@@ -112,7 +112,7 @@ namespace LittleSGR {
 		  DWORD biClrUsed;	// 指定位图实际使用的颜色索引数，用于 biCompression 指定的压缩模式，为0使用与biBitCount成员的之相应的最大颜色数
 		  DWORD biClrImportant;	//指定位图所需的颜色索引数，为 0 默认需要所有颜色
 		} _BITMAPINFOHEADER;
-		
+
 		*/
 
 		BITMAPINFOHEADER biHeader = {};
@@ -139,7 +139,7 @@ namespace LittleSGR {
 		HBITMAP newBitmap;
 
 		newBitmap = CreateDIBSection(m_MemoryDC, (BITMAPINFO*)&biHeader,
-			DIB_RGB_COLORS,(void**) &m_Buffer, nullptr, 0);
+			DIB_RGB_COLORS, (void**)&m_Buffer, nullptr, 0);
 		// 创建位图并与 m_MemoryDC 关联，并返回位图给 newBitmap 
 		// m_Buffer 为指向图像缓冲区的指针，使用 m_Buffer 来操作图像缓冲区中的位图
 
@@ -180,9 +180,9 @@ namespace LittleSGR {
 		Show();
 	}
 
-	void  WindowsWindow::Show() const{
+	void  WindowsWindow::Show() const {
 		HDC windowDC = GetDC(m_Handle);
-		
+
 		/* Blt(Block Transfer) Blit
 		BOOL BitBlt(
 		  [in] HDC   hdc,	// 要传入的DC句柄
@@ -209,8 +209,8 @@ namespace LittleSGR {
 
 		ReleaseDC(m_Handle, windowDC);
 	}
-	
-	WindowsWindow::~WindowsWindow(){
+
+	WindowsWindow::~WindowsWindow() {
 		ShowWindow(m_Handle, SW_HIDE);
 		// SW_HIDE 隐藏窗口并激活其他窗口
 
@@ -228,7 +228,7 @@ namespace LittleSGR {
 
 	void WindowsWindow::Init() {
 
-		ASSERT(!s_Inited);	
+		ASSERT(!s_Inited);
 		Register();
 		s_Inited = true;
 	}
@@ -257,7 +257,7 @@ namespace LittleSGR {
 		wc.hbrBackground = (HBRUSH)GetStockObject(WHITE_BRUSH);
 		wc.lpszClassName = WINDOW_CLASS_NAME;
 		wc.cbSize = sizeof(WNDCLASSEXA);
-		wc.hInstance = GetModuleHandle(NULL); 
+		wc.hInstance = GetModuleHandle(NULL);
 		wc.lpszMenuName = NULL;
 		wc.hIcon = NULL;
 		wc.hCursor = NULL;
@@ -273,22 +273,22 @@ namespace LittleSGR {
 		*/
 		ATOM atom = RegisterClassExA(&wc);
 	}
-	
+
 	void WindowsWindow::Terminate() {
 		ASSERT(s_Inited);
 		Unregister();
 		s_Inited = false;
 	}
 
-	void WindowsWindow::Unregister(){
-	
+	void WindowsWindow::Unregister() {
+
 	}
 
-	void WindowsWindow::RunMessageLoop(){
+	void WindowsWindow::RunMessageLoop() {
 		std::cout << "loop!";
 		MSG message;
 		while (GetMessage(&message, NULL, 0, 0)) {
-				// 获取消息
+			// 获取消息
 			TranslateMessage(&message);
 			// 翻译消息
 			DispatchMessage(&message);
@@ -302,7 +302,7 @@ namespace LittleSGR {
 
 		if (window == nullptr)
 			return DefWindowProc(hWnd, msgID, wParam, lParam);
-			// DefWindowProc(hWnd, msgID, wParam, lParam); 为不处理的窗口消息提供默认处理
+		// DefWindowProc(hWnd, msgID, wParam, lParam); 为不处理的窗口消息提供默认处理
 
 		switch (msgID)
 		{
@@ -341,20 +341,22 @@ namespace LittleSGR {
 	}
 
 	void WindowsWindow::DrawFrameBuffer(const FrameBuffer framebuffer) {
+		//std::cout << framebuffer.GetWidth() << m_Width;
 		int width = (framebuffer.GetWidth() > m_Width ? m_Width : framebuffer.GetWidth());
 		int height = (framebuffer.GetHeight() > m_Height ? m_Height : framebuffer.GetHeight());
+		std::cout << width << "and" << height;
 		// 确保渲染画面不会超过窗口大小
 		for (int i = 0; i < height; i++) {
 			for (int j = 0; j < width; j++) {
-				const int m_bufferIndex = (i * height + j) * 3;
-				//	 m_buffer 相邻三个位置为一个单位表示g,b,r，因此vec[]数组的索引需要 *3
-
-				m_Buffer[m_bufferIndex] = (unsigned char)framebuffer.GetColorbuffer(i, j).z();
-
+				const int m_bufferIndex = (i * width + j) * 3;
+				//	m_buffer 相邻三个位置为一个单位表示g,b,r，因此vec[]数组的索引需要 *3
+				m_Buffer[m_bufferIndex] = (unsigned char)(framebuffer.GetColorbuffer(j, height - i - 1).z() * 255.0f);	//	height - i - 1 为从上向下读取
+				m_Buffer[m_bufferIndex + 1] = (unsigned char)(framebuffer.GetColorbuffer(j, height - i - 1).y() * 255.0f);
+				m_Buffer[m_bufferIndex + 2] = (unsigned char)(framebuffer.GetColorbuffer(j, height - i - 1).x() * 255.0f);
+				//	* 255.0f : 在framebuffer 中颜色值被归一化到 0-1 之间，*255 后再强制转换为 unsigned char 以便用8位无符号整型保存颜色值
+				//	 注意：在 m_buffer 中颜色的排序为 b, g, r ,与 framebuffer 中 vec3d 的 r, g, b 相反，需要反着读取 vec3d 来对 m_buffer 赋值
 			}
 		}
-		
-
+		Show();
 	}
-
 }
