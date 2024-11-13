@@ -18,7 +18,7 @@ set(SOURCE_FILES
 # 添加头文件
 set(HEADER_FILES  
     "src/GraphicsPipeline.h"
- "src/Application.h"  "src/WindowsWindow.h" "src/Base.h" "src/FrameBuffer.h")  
+ "src/Application.h"  "src/WindowsWindow.h" "src/Base.h" "src/FrameBuffer.h" "src/Transformation.h")  
 
 # 将源文件编译成可执行文件  
 add_executable(MyExecutable ${SOURCE_FILES} ${HEADER_FILES})  

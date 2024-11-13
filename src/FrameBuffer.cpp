@@ -7,10 +7,11 @@ using namespace Eigen;
 #define DEFAULT_Z 1
 
 namespace LittleSGR {
+
 	FrameBuffer::FrameBuffer(const int width, const int height)
 		:m_Width(width), m_Height(height) {
 		m_Size = m_Width * m_Height;
-		m_ColorBuffer = new Vector3d[m_Size];
+		m_ColorBuffer = new Vector3f[m_Size];
 		m_ZBuffer = new float[m_Size];
 		ClearColorBuffer();
 		ClearZBuffer();
@@ -20,9 +21,9 @@ namespace LittleSGR {
 		: m_Width(other.m_Width),
 		m_Height(other.m_Height),
 		m_Size(other.m_Size),
-		m_ColorBuffer(new Eigen::Vector3d[m_Size]),
+		m_ColorBuffer(new Eigen::Vector3f[m_Size]),
 		m_ZBuffer(new float[m_Size]) {
-		std::memcpy(m_ColorBuffer, other.m_ColorBuffer, m_Size * sizeof(Eigen::Vector3d));	// 深拷贝
+		std::memcpy(m_ColorBuffer, other.m_ColorBuffer, m_Size * sizeof(Eigen::Vector3f));	// 深拷贝
 		std::memcpy(m_ZBuffer, other.m_ZBuffer, m_Size * sizeof(float));
 	}
 
@@ -33,16 +34,16 @@ namespace LittleSGR {
 		m_ZBuffer = nullptr;
 	}
 
-	void FrameBuffer::SetColorbuffer(const int x, const int y, const Vector3d rgb) {
+	void FrameBuffer::SetColorbuffer(const int x, const int y, const Vector3f rgb) {
 		int i = GetPixelIndex(x, y);
-		std::cout << i << std::endl;
+		std::cout << x << " , " << y << " : " << i << std::endl;
 		if (i >= 0 && i < m_Size)
 			m_ColorBuffer[i] = rgb;
 		else
 			ASSERT(0);
 	}
 
-	Vector3d FrameBuffer::GetColorbuffer(const int x, const int y) const {
+	Vector3f FrameBuffer::GetColorbuffer(const int x, const int y) const {
 		int i = GetPixelIndex(x, y);
 		if (i >= 0 && i < m_Size)
 			return m_ColorBuffer[i];
@@ -66,23 +67,25 @@ namespace LittleSGR {
 			ASSERT(0);
 	}
 
+	int FrameBuffer::GetPixelIndex(const int x, const int y) const {
+		return (y * m_Width + x);
+	}
+
+	void FrameBuffer::ClearColorBuffer() {
+		for (int i = 0; i < m_Size; ++i) {
+			m_ColorBuffer[i] = Vector3f(0, 0, 0);
+		}
+	}
+
+	void FrameBuffer::ClearZBuffer() {
+		memset(m_ZBuffer, DEFAULT_Z, m_Size);
+	}
+
 	int FrameBuffer::GetHeight() const {
 		return m_Height;
 	}
 
 	int FrameBuffer::GetWidth() const {
 		return m_Width;
-	}
-
-	int FrameBuffer::GetPixelIndex(const int x, const int y) const {
-		return (y * m_Width + x);
-	}
-
-	void FrameBuffer::ClearColorBuffer() {
-		memset(m_ColorBuffer, COLOR_BLACK, m_Size);
-	}
-
-	void FrameBuffer::ClearZBuffer() {
-		memset(m_ZBuffer, DEFAULT_Z, m_Size);
 	}
 }

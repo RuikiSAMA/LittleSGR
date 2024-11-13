@@ -348,11 +348,11 @@ namespace LittleSGR {
 		// 确保渲染画面不会超过窗口大小
 		for (int i = 0; i < height; i++) {
 			for (int j = 0; j < width; j++) {
-				const int m_bufferIndex = (i * width + j) * 3;
+				const int pixelIndex = (i * width + j) * 3;
 				//	m_buffer 相邻三个位置为一个单位表示g,b,r，因此vec[]数组的索引需要 *3
-				m_Buffer[m_bufferIndex] = (unsigned char)(framebuffer.GetColorbuffer(j, height - i - 1).z() * 255.0f);	//	height - i - 1 为从上向下读取
-				m_Buffer[m_bufferIndex + 1] = (unsigned char)(framebuffer.GetColorbuffer(j, height - i - 1).y() * 255.0f);
-				m_Buffer[m_bufferIndex + 2] = (unsigned char)(framebuffer.GetColorbuffer(j, height - i - 1).x() * 255.0f);
+				m_Buffer[pixelIndex] = (unsigned char)(framebuffer.GetColorbuffer(j, height - i - 1).z() * 255.0f);	//	height - i - 1 为从上向下读取
+				m_Buffer[pixelIndex + 1] = (unsigned char)(framebuffer.GetColorbuffer(j, height - i - 1).y() * 255.0f);
+				m_Buffer[pixelIndex + 2] = (unsigned char)(framebuffer.GetColorbuffer(j, height - i - 1).x() * 255.0f);
 				//	* 255.0f : 在framebuffer 中颜色值被归一化到 0-1 之间，*255 后再强制转换为 unsigned char 以便用8位无符号整型保存颜色值
 				//	 注意：在 m_buffer 中颜色的排序为 b, g, r ,与 framebuffer 中 vec3d 的 r, g, b 相反，需要反着读取 vec3d 来对 m_buffer 赋值
 			}

@@ -9,9 +9,9 @@ namespace LittleSGR {
 		FrameBuffer(const int width, const int height);
 		FrameBuffer(const FrameBuffer& thant);
 		~FrameBuffer();
-		void SetColorbuffer(const int x, const int y, const Vector3d rgb);
+		void SetColorbuffer(const int x, const int y, const Vector3f rgb);
 		void SetZBuffer(const int x, const int y, const float z);
-		Vector3d GetColorbuffer(const int x, const int y) const;
+		Vector3f GetColorbuffer(const int x, const int y) const;
 		float GetZBuffer(const int x, const int y) const;
 		int GetWidth() const;
 		int GetHeight() const;
@@ -25,7 +25,7 @@ namespace LittleSGR {
 		int m_Width;
 		int m_Height;
 		int m_Size;
-		Vector3d* m_ColorBuffer;
+		Vector3f* m_ColorBuffer;
 		float* m_ZBuffer;
 	};
 }

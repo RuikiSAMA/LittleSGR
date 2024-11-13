@@ -14,6 +14,7 @@ namespace LittleSGR {
 		std::cout << "Init" << std::endl;
 		WindowsWindow::Init();
 		m_Window = new WindowsWindow(m_Name, m_Width, m_Height);
+		m_Pipeline = new GraphicsPipeline(m_Width, m_Height);
 	}
 
 	void Application::Run()
@@ -28,7 +29,7 @@ namespace LittleSGR {
 	void Application::OnUpdate()
 	{
 		FrameBuffer fb(m_Width, m_Height);
-
+		m_Pipeline->DrawLine(Vector2i(0, 0), Vector2i(499, 399), &fb);
 		m_Window->DrawFrameBuffer(fb);
 	}
 
@@ -41,6 +42,8 @@ namespace LittleSGR {
 		// 结束程序需要在调用 Terminate() 之前删除 m_Window 否则内存泄露
 
 		WindowsWindow::Terminate();
+
+		delete m_Pipeline;
 	}
 
 
