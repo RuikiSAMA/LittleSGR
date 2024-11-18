@@ -1,6 +1,6 @@
 #pragma once
 #include "WindowsWindow.h"
-#include "GraphicsPipeline.h"
+#include "Renderer.h"
 #include <string>
 
 namespace LittleSGR {
@@ -25,6 +25,6 @@ namespace LittleSGR {
 		int m_Height;
 
 		WindowsWindow* m_Window;
-		GraphicsPipeline* m_Pipeline;
+		Renderer* m_Renderer;
 	};
 }

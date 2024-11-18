@@ -13,12 +13,12 @@ include_directories("lib/eigen3")
 # 添加源文件  
 set(SOURCE_FILES  
     "src/Application.cpp"
-   "src/WindowsWindow.cpp" "src/main.cpp" "src/FrameBuffer.cpp" "src/GraphicsPipeline.cpp")  
+   "src/WindowsWindow.cpp" "src/main.cpp" "src/FrameBuffer.cpp"   "src/VertexShader.cpp" "src/Renderer.cpp")  
 
 # 添加头文件
 set(HEADER_FILES  
-    "src/GraphicsPipeline.h"
- "src/Application.h"  "src/WindowsWindow.h" "src/Base.h" "src/FrameBuffer.h" "src/Transformation.h")  
+    
+ "src/Application.h"  "src/WindowsWindow.h" "src/Base.h" "src/FrameBuffer.h"  "src/VertexShader.h" "src/Renderer.h")  
 
 # 将源文件编译成可执行文件  
 add_executable(MyExecutable ${SOURCE_FILES} ${HEADER_FILES})  

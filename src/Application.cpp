@@ -14,7 +14,7 @@ namespace LittleSGR {
 		std::cout << "Init" << std::endl;
 		WindowsWindow::Init();
 		m_Window = new WindowsWindow(m_Name, m_Width, m_Height);
-		m_Pipeline = new GraphicsPipeline(m_Width, m_Height);
+		m_Renderer = new Renderer(m_Width, m_Height);
 	}
 
 	void Application::Run()
@@ -29,7 +29,7 @@ namespace LittleSGR {
 	void Application::OnUpdate()
 	{
 		FrameBuffer fb(m_Width, m_Height);
-		m_Pipeline->DrawLine(Vector2i(0, 0), Vector2i(499, 399), &fb);
+		m_Renderer->DrawLine(Vector2i(0, 0), Vector2i(1000, 1000), &fb, Vector3f(1,1,1));
 		m_Window->DrawFrameBuffer(fb);
 	}
 
@@ -43,7 +43,7 @@ namespace LittleSGR {
 
 		WindowsWindow::Terminate();
 
-		delete m_Pipeline;
+		delete m_Renderer;
 	}
 
 
