@@ -3,41 +3,18 @@
 #include <cmath>
 
 namespace LittleSGR {
-	Frustum::Frustum(float near, float far, float fovY, float aspect)
-		:m_Near(near), m_Far(far), m_FovY(fovY), m_Aspect(aspect) {	//	aspect = width/height , tan(foyY/2) = height/2|n|
-	}
-
-	Frustum::~Frustum() {
-	}
-}
-
-namespace LittleSGR {
-	Camera::Camera(Frustum frustum, Vector3f gaze, Vector3f top)
-		:m_Gaze(gaze), m_Top(top) {
-		Vector3f m_Left = (top.cross(gaze)).normalized();
-		m_Frustum = new Frustum(frustum);
-	}
-
-	Camera::~Camera() {
-
-	}
-}
-
-namespace LittleSGR {
 	Renderer::Renderer(int width, int height)
 		:m_Width(width), m_Height(height){
-		m_VertexShader = new VertexShader(width, height);
 	}
 
 	Renderer::~Renderer(){
-		delete m_VertexShader;
 	}
 
-	Matrix4f Renderer::VertexShaderMat() {
-		return m_VertexShader->ProjectTransMat() * m_VertexShader->ViewTransMat() * m_VertexShader->ModelTransMat();
+	void Renderer::VertexShader(Varing& varings, const Vertex vertexs, const Uniform uniforms) {
+		varings.ClipPos = uniforms.MVP * vertexs.ModelPos;
 	}
 
-	void Renderer::Draw(FrameBuffer framebuffer, Triangle tri) {
+	void Renderer::Draw(FrameBuffer framebuffer, Triangle triangle, Uniform unifrom) {
 
 	}
 
