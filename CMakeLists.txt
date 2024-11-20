@@ -13,7 +13,7 @@ include_directories("lib/eigen3")
 # 添加源文件  
 set(SOURCE_FILES  
     "src/Application.cpp"
-   "src/WindowsWindow.cpp" "src/main.cpp" "src/FrameBuffer.cpp"    "src/Renderer.cpp")  
+   "src/WindowsWindow.cpp" "src/main.cpp" "src/FrameBuffer.cpp"    "src/Renderer.cpp" "src/VertexShader.cpp")  
 
 # 添加头文件
 set(HEADER_FILES  

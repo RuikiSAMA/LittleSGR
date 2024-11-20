@@ -14,7 +14,7 @@ namespace LittleSGR {
 		std::cout << "Init" << std::endl;
 		WindowsWindow::Init();
 		m_Window = new WindowsWindow(m_Name, m_Width, m_Height);
-		m_Renderer = new Renderer(m_Width, m_Height);
+		m_Renderer = new Renderer();
 	}
 
 	void Application::Run()
@@ -29,7 +29,12 @@ namespace LittleSGR {
 	void Application::OnUpdate()
 	{
 		FrameBuffer fb(m_Width, m_Height);
-		m_Renderer->DrawLine(Vector2i(0, 0), Vector2i(1000, 1000), &fb, Vector3f(1,1,1));
+		VertexTriangle vTriangle;
+		Uniform uniform;
+		vTriangle[0].ModelPos = { -10.0f, 10.0f, -10.0f, 1.0f };
+		vTriangle[1].ModelPos = { -10.0f, -10.0f, -10.0f, 1.0f };
+		vTriangle[2].ModelPos = { 30.0f, -10.0f, -10.0f, 1.0f };
+		Renderer::Draw(fb, vTriangle, uniform);
 		m_Window->DrawFrameBuffer(fb);
 	}
 
@@ -45,11 +50,5 @@ namespace LittleSGR {
 
 		delete m_Renderer;
 	}
-
-
-
-
-
-
 
 }

@@ -17,7 +17,7 @@ namespace LittleSGR {
 		ClearZBuffer();
 	}
 
-	FrameBuffer::FrameBuffer(const FrameBuffer& other) 	//	浅拷贝害人不浅！TAT  --2024.11.12 23:05
+	FrameBuffer::FrameBuffer(const FrameBuffer& other) 	//	谨防浅拷贝！TAT  --2024.11.12 23:05
 		: m_Width(other.m_Width),
 		m_Height(other.m_Height),
 		m_Size(other.m_Size),

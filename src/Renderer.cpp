@@ -3,22 +3,94 @@
 #include <cmath>
 
 namespace LittleSGR {
-	Renderer::Renderer(int width, int height)
-		:m_Width(width), m_Height(height){
-	}
+	int Renderer::m_Width = 500;
+	int Renderer::m_Height = 400;
+	float Renderer::m_Aspect = 500.0f / 400.0f;
+	Frustum Renderer::m_Frustum(Renderer::m_Aspect);
+	Camera Renderer::m_Camera;
 
-	Renderer::~Renderer(){
-	}
-
-	void Renderer::VertexShader(Varing& varings, const Vertex vertexs, const Uniform uniforms) {
-		varings.ClipPos = uniforms.MVP * vertexs.ModelPos;
-	}
-
-	void Renderer::Draw(FrameBuffer framebuffer, Triangle triangle, Uniform unifrom) {
+	Renderer::Renderer(){
 
 	}
 
-	void Renderer::DrawLine(Vector2i v0, Vector2i v1, FrameBuffer* fb, Vector3f color) {
+	Renderer::~Renderer() {
+	}
+
+	void Renderer::init(int width, int height, Frustum frustum, Camera camera, float aspect) {
+		m_Frustum = frustum;
+		m_Camera = camera;
+		m_Aspect = aspect;
+	}
+
+	bool Renderer::FrustumCull(Varing* varing) {
+		return false;
+	}
+
+	void Renderer::VertexShader(const Vertex vertex, Varing& varings, Uniform uniforms) {
+		uniforms.MVP = ProjectTransMat(m_Frustum) * ViewTransMat(m_Camera) * Matrix4f::Identity();
+		varings.ClipPos = uniforms.MVP * vertex.ModelPos;
+	}
+
+	void Renderer::GetNdcPos(Varing* varing, int vertexNum) {
+		for (int i = 0; i < vertexNum; i++) {
+			varing[i].NdcPos = varing[i].ClipPos * (1.0 / varing[i].ClipPos.w());
+		}
+	}
+
+	void Renderer::GetFragPos(Varing* varing, int vertexNum, int width, int height) {
+		for (int i = 0; i < vertexNum; i++) {
+			varing[i].FragPos.x() = (varing[i].NdcPos.x() + 1) * 0.5f * width;
+			varing[i].FragPos.y() = (varing[i].NdcPos.y() + 1) * 0.5f * height;
+			varing[i].FragPos.z() = (varing[i].NdcPos.z() + 1) * 0.5;
+			varing[i].FragPos.w() = varing[i].NdcPos.w();
+		}
+	}
+
+	void Renderer::Rasterization(VaringTriangle vTriangle, FrameBuffer& framebuffer) {
+		
+		Vector2i v0((int)vTriangle[0].FragPos.x(), (int)vTriangle[0].FragPos.y());
+		Vector2i v1((int)vTriangle[1].FragPos.x(), (int)vTriangle[1].FragPos.y());
+		Vector2i v2((int)vTriangle[2].FragPos.x(), (int)vTriangle[2].FragPos.y());
+		
+		DrawLine_WithoutClip(v0, v1, framebuffer, Vector3f(1.0f, 1.0f, 1.0f));
+		DrawLine_WithoutClip(v1, v2, framebuffer, Vector3f(1.0f, 1.0f, 1.0f));
+		DrawLine_WithoutClip(v2, v0, framebuffer, Vector3f(1.0f, 1.0f, 1.0f));
+	}
+
+	void Renderer::Draw(FrameBuffer& framebuffer, VertexTriangle vertexTriangle, Uniform unifrom) {
+		Varing varing[9];	//	ä¸‰è§’å½¢ç»è¿‡è£å‰ªæœ€å¤šå½¢æˆ9ä¸ªé¡¶ç‚¹çš„å¤šè¾¹å½¢
+		for (int i = 0; i < 3; i++)
+			VertexShader(vertexTriangle[i], varing[i], unifrom);	//	å¯¹ä¸‰è§’å½¢æ¯ä¸ªé¡¶ç‚¹æ‰§è¡Œé¡¶ç‚¹ç€è‰²å™¨
+		if (FrustumCull(varing))	//	è¿›è¡Œè§†æ¤å‰”é™¤
+			return;
+		int VertexNum = ClipVertex(varing);
+
+		GetNdcPos(varing, VertexNum);	//	è¿›è¡Œé€è§†é™¤æ³•
+		int fbWidth = framebuffer.GetWidth();
+		int fbHeight = framebuffer.GetHeight();
+
+		GetFragPos(varing, VertexNum, fbWidth, fbHeight);	//	è¿›è¡Œè§†å£å˜æ¢
+
+		if (VertexNum == 3) {
+			VaringTriangle vTriangle;
+			for (int i = 0; i < 3; i++) {
+				vTriangle[i] = varing[i];
+			}
+			Rasterization(vTriangle, framebuffer);
+		}
+		else{	//	å°†é¡¶ç‚¹è¿æˆä¸‰è§’å½¢
+			for (int i = 0; i < VertexNum - 2; i++) {
+				VaringTriangle vTriangle;
+				vTriangle[0] = varing[i];
+				vTriangle[1] = varing[i + 1];
+				vTriangle[2] = varing[i + 2];
+
+				Rasterization(vTriangle, framebuffer);
+			}
+		}
+	}
+
+	void Renderer::DrawLine(Vector2i v0, Vector2i v1, FrameBuffer& fb, Vector3f color) {
 		if (ClipLine(v0, v1)) {
 			DrawLine_WithoutClip(v0, v1, fb, color);
 		}
@@ -42,13 +114,13 @@ namespace LittleSGR {
 		return code;
 	}
 
-	bool Renderer::ClipLine(Vector2i& v0, Vector2i& v1) {	//	ÆÁÄ»¿Õ¼äÏÂµÄÏß¶Î²Ã¼ô
+	bool Renderer::ClipLine(Vector2i& v0, Vector2i& v1) {	//	å±å¹•ç©ºé—´ä¸‹çš„çº¿æ®µè£å‰ª
 		int outcode0 = ComputeOutCode(v0);
 		int outcode1 = ComputeOutCode(v1);
 
 		bool accept = false;
 
-		const int xmax = m_Width - 1;	//	×ø±ê×î´óÖµÎª³ß´ç -1
+		const int xmax = m_Width - 1;	//	åæ ‡æœ€å¤§å€¼ä¸ºå°ºå¯¸ -1
 		const int xmin = 0;
 		const int ymax = m_Height - 1;
 		const int ymin = 0;
@@ -70,12 +142,12 @@ namespace LittleSGR {
 				float x = 0, y = 0;
 
 				// At least one endpoint is outside the clip rectangle; pick it.
-				int outcodeOut = outcode1 > outcode0 ? outcode1 : outcode0;	// ÏÈ¶ÔÑÚÂëÖµ½Ï´óµÄµã½øĞĞ²Ã¼ôÔËËã
+				int outcodeOut = outcode1 > outcode0 ? outcode1 : outcode0;	// å…ˆå¯¹æ©ç å€¼è¾ƒå¤§çš„ç‚¹è¿›è¡Œè£å‰ªè¿ç®—
 				// No need to worry about divide-by-zero because, in each case, the
 				// outcode bit being tested guarantees the denominator is non-zero
 
 				if (outcodeOut & TOP) {    // point is above the clip window
-					x = v0.x() + (v1.x() - v0.x()) * (ymax - v0.y()) / (v1.y() - v0.y());	//	Èı½ÇĞÎÏàËÆ
+					x = v0.x() + (v1.x() - v0.x()) * (ymax - v0.y()) / (v1.y() - v0.y());	//	ä¸‰è§’å½¢ç›¸ä¼¼
 					y = ymax;
 				}
 				if (outcodeOut & BOTTOM) { // point is below the clip window
@@ -107,23 +179,23 @@ namespace LittleSGR {
 		}
 		return accept;
 
-		/* Cohen Sutherland Ëã·¨£º
-		   ½«ÆÁÄ»µÄ±ßÑÓ³¤²¢·ÖÎª 9 ¸öÇøÓò²¢±àºÅ£¬0000Î»ÆÁÄ»¿É¼ûÇøÓò
+		/* Cohen Sutherland ç®—æ³•ï¼š
+		   å°†å±å¹•çš„è¾¹å»¶é•¿å¹¶åˆ†ä¸º 9 ä¸ªåŒºåŸŸå¹¶ç¼–å·ï¼Œ0000ä½å±å¹•å¯è§åŒºåŸŸ
 		   1001|1000|1010
 		   ----+----+----
 		   0001|0000|0010
 		   ----+----+----
 		   0101|0100|0110
 
-		   1¡¢¶ÔÖ±ÏßÁ½¸öµãËùÔÚÇøÓòµÄ±àºÅ×ö °´Î»or ÔËËã£¬Èô½á¹ûÎª 0 ÔòËµÃ÷Á½¸öµã¶¼ÔÚÆÁÄ»ÇøÓòÄÚ
-		   2¡¢ÈôÁ½¸ö±àºÅ×ö °´Î»and ÔËËã½á¹û²»ÎªÁã£¬ÔòËµÃ÷Á½¸öµãµÄÎ»ÖÃ¶¼ÔÚÆÁÄ»Íâ
-		   3¡¢ÔÚÁ½¸ö¶ËµãÎ»ÓÚ²»Í¬ÇøÓòÄÚÇÒ°üº¬¿É¼ûÇøÓòÊ±£¬ÕÒÆÁÄ»ÇøÓòÖ®ÍâµÄÁ½¸öµãÖ®Ò»£¨ÖÁÉÙÓĞÒ»¸öÔÚÆÁÄ»ÇøÓòÖ®Íâ£©£¬
-			   ¼ÆËã³öµãºÍÆÁÄ»±ß½çµÄ½»µã£¬²¢Ìæ»»µôÕâ¸öÆÁÄ»Ö®ÍâµÄµã£¬È»ºóÔÙÖØ¸´²Ù×÷£¬Ö±µ½Á½¸öµã¶¼ÔÚÆÁÄ»ÇøÓòÄÚ
+		   1ã€å¯¹ç›´çº¿ä¸¤ä¸ªç‚¹æ‰€åœ¨åŒºåŸŸçš„ç¼–å·åš æŒ‰ä½or è¿ç®—ï¼Œè‹¥ç»“æœä¸º 0 åˆ™è¯´æ˜ä¸¤ä¸ªç‚¹éƒ½åœ¨å±å¹•åŒºåŸŸå†…
+		   2ã€è‹¥ä¸¤ä¸ªç¼–å·åš æŒ‰ä½and è¿ç®—ç»“æœä¸ä¸ºé›¶ï¼Œåˆ™è¯´æ˜ä¸¤ä¸ªç‚¹çš„ä½ç½®éƒ½åœ¨å±å¹•å¤–
+		   3ã€åœ¨ä¸¤ä¸ªç«¯ç‚¹ä½äºä¸åŒåŒºåŸŸå†…ä¸”åŒ…å«å¯è§åŒºåŸŸæ—¶ï¼Œæ‰¾å±å¹•åŒºåŸŸä¹‹å¤–çš„ä¸¤ä¸ªç‚¹ä¹‹ä¸€ï¼ˆè‡³å°‘æœ‰ä¸€ä¸ªåœ¨å±å¹•åŒºåŸŸä¹‹å¤–ï¼‰ï¼Œ
+			   è®¡ç®—å‡ºç‚¹å’Œå±å¹•è¾¹ç•Œçš„äº¤ç‚¹ï¼Œå¹¶æ›¿æ¢æ‰è¿™ä¸ªå±å¹•ä¹‹å¤–çš„ç‚¹ï¼Œç„¶åå†é‡å¤æ“ä½œï¼Œç›´åˆ°ä¸¤ä¸ªç‚¹éƒ½åœ¨å±å¹•åŒºåŸŸå†…
 
 		*/
 	}
 
-	void Renderer::DrawLine_WithoutClip(Vector2i v0, Vector2i v1, FrameBuffer* fb, Vector3f color) {
+	void Renderer::DrawLine_WithoutClip(Vector2i v0, Vector2i v1, FrameBuffer& fb, Vector3f color) {
 		bool swap = false;
 		if (std::abs(v1.y() - v0.y()) > std::abs(v1.x() - v0.x())) {
 			swap = true;
@@ -145,10 +217,10 @@ namespace LittleSGR {
 		int y = v0.y();
 		for (int x = v0.x(); x <= v1.x(); x++) {
 			if (swap) {
-				fb->SetColorbuffer(y, x, color);
+				fb.SetColorbuffer(y, x, color);
 			}
 			else {
-				fb->SetColorbuffer(x, y, color);
+				fb.SetColorbuffer(x, y, color);
 			}
 			error2 += derror2;
 			if (error2 > dx) {
@@ -180,14 +252,14 @@ namespace LittleSGR {
 		//	}
 		//}
 
-		/* ÖĞµãËã·¨
-		Éè e(i+1) Îª k + yi
+		/* ä¸­ç‚¹ç®—æ³•
+		è®¾ e(i+1) ä¸º k + yi
 
-		Èô e(i+1) >= 0.5
-		Ôò y(i+1) = yi + 1, ÇÒ e(i+1) -= 1	// ÒòÎª e(i+2) ¼ÓÁË1£¬ĞèÒªÓë 1.5 ×÷±È½Ï£¬ÎªÁËÊ¼ÖÕÓë 0.5 ×÷±È½Ï£¬µÈÊ½Á½±ßÍ¬Ê± -1	// e(i+2) - 1 ? 1.5 -1
+		è‹¥ e(i+1) >= 0.5
+		åˆ™ y(i+1) = yi + 1, ä¸” e(i+1) -= 1	// å› ä¸º e(i+2) åŠ äº†1ï¼Œéœ€è¦ä¸ 1.5 ä½œæ¯”è¾ƒï¼Œä¸ºäº†å§‹ç»ˆä¸ 0.5 ä½œæ¯”è¾ƒï¼Œç­‰å¼ä¸¤è¾¹åŒæ—¶ -1	// e(i+2) - 1 ? 1.5 -1
 
-		Èô e(i+1) < 0.5
-		Ôò y(i+1) = yi
+		è‹¥ e(i+1) < 0.5
+		åˆ™ y(i+1) = yi
 
 		const float k = dy / dx;
 		float e = 0;
@@ -206,7 +278,7 @@ namespace LittleSGR {
 			}
 		}
 
-		Bresenham ÓÅ»¯£ºÍ¬Ê±³ËÒÔ 2dx ÏûÈ¥·ÖÄ¸£¬dx > 0 Òò´Ë²»Ó°Ïì±È½Ï½á¹û£¬ÓÅ»¯ºó²»ĞèÒª×ö¸¡µãÊıÔËËã
+		Bresenham ä¼˜åŒ–ï¼šåŒæ—¶ä¹˜ä»¥ 2dx æ¶ˆå»åˆ†æ¯ï¼Œdx > 0 å› æ­¤ä¸å½±å“æ¯”è¾ƒç»“æœï¼Œä¼˜åŒ–åä¸éœ€è¦åšæµ®ç‚¹æ•°è¿ç®—
 		e0 = 0
 		e(i+1) == ei + k == ei + dy/dx
 
@@ -214,5 +286,112 @@ namespace LittleSGR {
 		2dx * ( e(i+1) ? 0.5 ) == 2dx * e(i+1) ? dx
 		2dx * (e(i+1) - 1) == 2dx * e(i+1) - 2dx
 		*/
+	}
+}
+
+namespace LittleSGR {
+
+	int Renderer::ClipVertex(Varing* varings) {
+		//	æ³¨ï¼šä¼ å…¥çš„æ•°ç»„å¤§å°åº”ä¸º9(è£å‰ªä¸‰è§’å½¢åæœ€å¤šäº§ç”Ÿ9ä¸ªé¡¶ç‚¹çš„å¤šè¾¹å½¢)
+		int VertexNum = 3;
+		bool v0 = IsInFrustum(varings[0]);
+		bool v1 = IsInFrustum(varings[1]);
+		bool v2 = IsInFrustum(varings[2]);
+		if (v0 && v1 && v2)
+			return VertexNum;	//	è‹¥ä¸‰è§’å½¢ä¸‰ä¸ªé¡¶ç‚¹éƒ½åœ¨è§†æ¤å†…åˆ™ä¸éœ€è¦è£å‰ª
+
+		Varing varings_[9];	//	ä½¿ç”¨åŒé‡ç¼“å­˜, é˜²æ­¢åªä½¿ç”¨ä¸€ä¸ªé¡¶ç‚¹é›†æ—¶é€ æˆæ–°çš„é¡¶ç‚¹å°†æœªå¤„ç†çš„é¡¶ç‚¹æ•°æ®è¦†ç›–çš„æƒ…å†µ
+		//	å°†é¡¶ç‚¹é›†ä¸æ‰€æœ‰è§†æ¤çš„é¢è¿›è¡Œè£å‰ª
+		ClippingPlane(varings, varings_, Plane::POSITIVE_W, VertexNum);
+		ClippingPlane(varings_, varings, Plane::POSITIVE_X, VertexNum);
+		ClippingPlane(varings, varings_, Plane::NEGATIVE_X, VertexNum);
+		ClippingPlane(varings_, varings, Plane::POSITIVE_Y, VertexNum);
+		ClippingPlane(varings, varings_, Plane::NEGATIVE_Y, VertexNum);
+		ClippingPlane(varings_, varings, Plane::Z_FAR, VertexNum);
+		ClippingPlane(varings, varings_, Plane::Z_NEAR, VertexNum);
+		memcpy(varings, varings_, sizeof(varings_));	//	å°†æœ€åä¸€æ¬¡è£å‰ªåçš„ç»“æœå¤åˆ¶å›varings
+		return VertexNum;
+	}
+
+	void Renderer::ClippingPlane(Varing* invarings, Varing* outvarings, Plane plane, int& vertexnum) {
+		//	Suntherland hodgmanç®—æ³•
+		const int size = vertexnum;
+		int vertexCount = 0;	//	è¾“å‡ºé¡¶ç‚¹æ•°é‡ã€è¾“å‡ºé¡¶ç‚¹çš„ç´¢å¼•
+		for (int i = 0; i < size; i++) {
+			int lastIndex = (i - 1 + size) % size;	//	ä¸Šä¸€ä¸ªé¡¶ç‚¹çš„ç´¢å¼•ï¼Œ+size å† %size é˜²æ­¢å‡ºç°è´Ÿæ•°
+
+			if ((!IsInPlane(invarings[i], plane)) || (!IsInPlane(invarings[i], plane))) {
+				//	è‹¥å½“å‰é¡¶ç‚¹ä¸ä¸Šä¸€ä¸ªé¡¶ç‚¹ä¸­æœ‰ä¸€ä¸ªä¸åœ¨å½“å‰é¢é‡Œä¾§ï¼Œåˆ™ä¸¤é¡¶ç‚¹è¿çº¿ä¸€å®šä¼šç©¿è¿‡å¹³é¢
+				float ratio = IntersectRatio(invarings[i], invarings[lastIndex], plane);
+				outvarings[vertexCount] = VaringLerp(invarings[i], invarings[lastIndex], ratio);
+				vertexCount++;
+			}
+
+			if (IsInFrustum(invarings[i])) {	//	è‹¥å½“å‰é¡¶ç‚¹åœ¨å½“å‰é¢é‡Œä¾§ï¼Œåˆ™åœ¨è¾“å‡ºé¡¶ç‚¹ä¸­åŠ å…¥å½“å‰é¡¶ç‚¹ï¼Œè¾“å‡ºé¡¶ç‚¹æ•°é‡+1
+				outvarings[vertexCount] = invarings[i];
+				vertexCount++;
+			}
+		}
+		vertexnum = vertexCount;
+	}
+
+	Varing Renderer::VaringLerp(Varing v0, Varing v1, float ratio) {
+		Varing vOut;
+		vOut.ClipPos = v0.ClipPos + ratio * (v1.ClipPos - v0.ClipPos);
+		vOut.TexCoor = v0.TexCoor + ratio * (v1.TexCoor - v0.TexCoor);
+		return vOut;
+	}
+
+	float Renderer::IntersectRatio(Varing v0, Varing v1, Plane plane) {
+		switch (plane)
+		{
+		case LittleSGR::Renderer::Plane::POSITIVE_W:
+			return (v0.ClipPos.w() - 0.0f) / (v0.ClipPos.w() - 0.0f) - (v1.ClipPos.w() - 0.0f);
+		case LittleSGR::Renderer::Plane::POSITIVE_X:
+			return (v0.ClipPos.x() - v0.ClipPos.w()) / (v0.ClipPos.x() - v0.ClipPos.w()) - (v1.ClipPos.x() - v1.ClipPos.w());
+		case LittleSGR::Renderer::Plane::POSITIVE_Y:
+			return (v0.ClipPos.y() - v0.ClipPos.w()) / (v0.ClipPos.y() - v0.ClipPos.w()) - (v1.ClipPos.y() - v1.ClipPos.w());
+		case LittleSGR::Renderer::Plane::Z_FAR:
+			return (v0.ClipPos.z() - v0.ClipPos.w()) / (v0.ClipPos.z() - v0.ClipPos.w()) - (v1.ClipPos.z() - v1.ClipPos.w());
+		case LittleSGR::Renderer::Plane::NEGATIVE_X:
+			return (v0.ClipPos.x() - (-v0.ClipPos.w())) / (v0.ClipPos.x() - (-v0.ClipPos.w())) - (v1.ClipPos.x() - (-v1.ClipPos.w()));
+		case LittleSGR::Renderer::Plane::NEGATIVE_Y:
+			return (v0.ClipPos.y() - (-v0.ClipPos.w())) / (v0.ClipPos.y() - (-v0.ClipPos.w())) - (v1.ClipPos.y() - (-v1.ClipPos.w()));
+		case LittleSGR::Renderer::Plane::Z_NEAR:
+			return (v0.ClipPos.z() - (-v0.ClipPos.w())) / (v0.ClipPos.z() - (-v0.ClipPos.w())) - (v1.ClipPos.z() - (-v1.ClipPos.w()));
+		}
+	}
+
+	bool Renderer::IsInPlane(Varing varing, Plane plane) {
+		switch (plane)
+		{
+		case LittleSGR::Renderer::Plane::POSITIVE_W:
+			//	å…ˆå‰”é™¤æ‰wå€¼ä¸ºè´Ÿçš„é¡¶ç‚¹ï¼Œè¿™ç±»é¡¶ç‚¹åœ¨zè½´æ­£ä¾§ï¼Œä¸å¯èƒ½æ»¡è¶³ä¸‹åˆ—ä»»ä½•æ¡ä»¶ï¼Œå…ˆå‰”é™¤æ‰å‡å°‘è®¡ç®—é‡ã€‚å…ˆè¿›è¡Œnearå‰”é™¤ä¹Ÿå¯ä»¥ã€‚
+			return varing.ClipPos.w() > 0.0f;
+		case LittleSGR::Renderer::Plane::POSITIVE_X:
+			return varing.ClipPos.x() < varing.ClipPos.w();
+		case LittleSGR::Renderer::Plane::POSITIVE_Y:
+			return varing.ClipPos.y() < varing.ClipPos.w();
+		case LittleSGR::Renderer::Plane::Z_FAR:
+			return varing.ClipPos.z() < varing.ClipPos.w();
+		case LittleSGR::Renderer::Plane::NEGATIVE_X:
+			return varing.ClipPos.x() > -varing.ClipPos.w();
+		case LittleSGR::Renderer::Plane::NEGATIVE_Y:
+			return varing.ClipPos.y() > -varing.ClipPos.w();
+		case LittleSGR::Renderer::Plane::Z_NEAR:
+			return varing.ClipPos.z() > -varing.ClipPos.w();
+		}
+	}
+
+	bool Renderer::IsInFrustum(Varing varing) {
+		bool IsX = std::abs(varing.ClipPos.x()) < varing.ClipPos.w();
+		bool IsY = std::abs(varing.ClipPos.y()) < varing.ClipPos.w();
+		bool IsZ = std::abs(varing.ClipPos.z()) < varing.ClipPos.w();
+		//	é€šè¿‡åˆ¤æ–­Clipç©ºé—´ä¸­çš„xã€yã€zå€¼æ˜¯å¦åœ¨[-w,w]å†…æ¥åˆ¤æ–­é¡¶ç‚¹æ˜¯å¦åœ¨è§†æ¤å†…éƒ¨
+		//	https://www.notion.so/1433146ac7c0807592f1d60c2f10f0c3?pvs=4
+		if (IsX && IsY && IsZ)
+			return true;
+		else
+			return false;
 	}
 }
