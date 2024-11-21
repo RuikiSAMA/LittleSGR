@@ -29,6 +29,7 @@ namespace LittleSGR {
 
 		static void KeyEvent(WindowsWindow* wd, const WPARAM wParam, const bool state);
 
+		static unsigned char Float2UChar(const float f);
 	private:
 		bool m_Close = true;
 

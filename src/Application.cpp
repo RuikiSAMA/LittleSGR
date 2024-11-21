@@ -29,7 +29,6 @@ namespace LittleSGR {
 	void Application::OnUpdate()
 	{
 		FrameBuffer fb(m_Width, m_Height);
-		m_Window->DrawFrameBuffer(fb);
 		VertexTriangle vTriangle;
 		Uniform uniform;
 		vTriangle[0].ModelPos = { -10.0f, 10.0f, -10.0f, 1.0f };
@@ -37,6 +36,14 @@ namespace LittleSGR {
 		vTriangle[2].ModelPos = { 30.0f, -10.0f, -10.0f, 1.0f };
 
 		Renderer::Draw(fb, vTriangle, uniform);
+
+		fb.SetColorbuffer(100, 100, Vector3f(1.0f,1.0f,1.0f));
+		fb.SetColorbuffer(99, 99, Vector3f(1.0f,1.0f,1.0f));
+		fb.SetColorbuffer(99, 100, Vector3f(1.0f,1.0f,1.0f));
+		fb.SetColorbuffer(100, 99, Vector3f(1.0f,1.0f,1.0f));
+
+		m_Window->DrawFrameBuffer(fb);
+
 	}
 
 	Application::~Application() {

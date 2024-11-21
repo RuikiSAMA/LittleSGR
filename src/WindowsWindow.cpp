@@ -57,8 +57,8 @@ namespace LittleSGR {
 		);
 		*/
 
-		m_Handle = CreateWindow(WINDOW_CLASS_NAME, m_Title.c_str(), style, CW_USEDEFAULT,
-			CW_USEDEFAULT, width, height, NULL, NULL, GetModuleHandle(NULL), NULL);
+		m_Handle = CreateWindow(WINDOW_CLASS_NAME, m_Title.c_str(), style, 400, 100, rect.right - rect.left, rect.bottom - rect.top,
+			NULL, NULL, GetModuleHandle(NULL), NULL);	//	这沟槽的CreateWindow还能影响后面的上下文和绘制位图，找了一整天bug谁能想到是这里有问题，真吗坑死我了！！！
 
 		ASSERT(m_Handle != nullptr);
 		m_Close = false;
@@ -119,7 +119,7 @@ namespace LittleSGR {
 
 		biHeader.biSize = sizeof(BITMAPINFOHEADER);
 		biHeader.biWidth = m_Width;
-		biHeader.biHeight = -m_Height;	// 希望从左上开始向下渲染，因此需要加负号
+		biHeader.biHeight = -m_Height;	// 左上开始向下渲染，因此需要加负号
 		biHeader.biPlanes = 1;
 		biHeader.biBitCount = 24;
 		biHeader.biCompression = BI_RGB;
@@ -177,6 +177,8 @@ namespace LittleSGR {
 		DeleteObject(oldBitmap);
 		// 删除之前被选中到 m_MemoryDC 的位图
 
+		ReleaseDC(m_Handle, windowDC);
+
 		Show();
 	}
 
@@ -208,6 +210,34 @@ namespace LittleSGR {
 		ShowWindow(m_Handle, SW_SHOW);
 
 		ReleaseDC(m_Handle, windowDC);
+	}
+
+	void WindowsWindow::DrawFrameBuffer(const FrameBuffer framebuffer) {	//	读取 FrameBuffer 并写入到 m_Buffer 中
+		//std::cout << "Framebuffer Size:" << framebuffer.GetWidth() << " * " << framebuffer.GetHeight() << std::endl;
+		//std::cout << "m_Buffer Size:" << m_Width << " * " << m_Height <<std::endl;
+		int width = (framebuffer.GetWidth() > m_Width ? m_Width : framebuffer.GetWidth());
+		int height = (framebuffer.GetHeight() > m_Height ? m_Height : framebuffer.GetHeight());
+		//std::cout << width << "and" << height;
+		// 确保渲染画面不会超过窗口大小
+		for (int i = 0; i < height; i++) {
+			for (int j = 0; j < width; j++) {
+				const int channelCount = 3;
+
+				const int pixelIndex = (i * width + j) * channelCount;
+				//	m_buffer 相邻三个位置为一个单位表示g,b,r，因此vec[]数组的索引需要 *3
+
+				m_Buffer[pixelIndex] = (unsigned char)(framebuffer.GetColorbuffer(j, height - i - 1).z() * 255.0f);	//	height - i - 1 为从上向下读取
+				m_Buffer[pixelIndex + 1] = (unsigned char)(framebuffer.GetColorbuffer(j, height - i - 1).y() * 255.0f);
+				m_Buffer[pixelIndex + 2] = (unsigned char)(framebuffer.GetColorbuffer(j, height - i - 1).x() * 255.0f);
+				//	* 255.0f : 在framebuffer 中颜色值被归一化到 0-1 之间，*255 后再强制转换为 unsigned char 以便用8位无符号整型保存颜色值
+				//	 注意：在 m_buffer 中颜色的排序为 b, g, r ,与 framebuffer 中 vec3d 的 r, g, b 相反，需要反着读取 vec3d 来对 m_buffer 赋值
+			}
+		}
+		Show();
+	}
+
+	unsigned char WindowsWindow::Float2UChar(const float f) {
+		return (unsigned char)(f * 255.0f);
 	}
 
 	WindowsWindow::~WindowsWindow() {
@@ -338,25 +368,5 @@ namespace LittleSGR {
 
 	bool WindowsWindow::IsClosed() {
 		return m_Close;
-	}
-
-	void WindowsWindow::DrawFrameBuffer(const FrameBuffer framebuffer) {
-		//std::cout << framebuffer.GetWidth() << m_Width;
-		int width = (framebuffer.GetWidth() > m_Width ? m_Width : framebuffer.GetWidth());
-		int height = (framebuffer.GetHeight() > m_Height ? m_Height : framebuffer.GetHeight());
-		std::cout << width << "and" << height;
-		// 确保渲染画面不会超过窗口大小
-		for (int i = 0; i < height; i++) {
-			for (int j = 0; j < width; j++) {
-				const int pixelIndex = (i * width + j) * 3;
-				//	m_buffer 相邻三个位置为一个单位表示g,b,r，因此vec[]数组的索引需要 *3
-				m_Buffer[pixelIndex] = (unsigned char)(framebuffer.GetColorbuffer(j, height - i - 1).z() * 255.0f);	//	height - i - 1 为从上向下读取
-				m_Buffer[pixelIndex + 1] = (unsigned char)(framebuffer.GetColorbuffer(j, height - i - 1).y() * 255.0f);
-				m_Buffer[pixelIndex + 2] = (unsigned char)(framebuffer.GetColorbuffer(j, height - i - 1).x() * 255.0f);
-				//	* 255.0f : 在framebuffer 中颜色值被归一化到 0-1 之间，*255 后再强制转换为 unsigned char 以便用8位无符号整型保存颜色值
-				//	 注意：在 m_buffer 中颜色的排序为 b, g, r ,与 framebuffer 中 vec3d 的 r, g, b 相反，需要反着读取 vec3d 来对 m_buffer 赋值
-			}
-		}
-		Show();
 	}
 }

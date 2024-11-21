@@ -2,6 +2,8 @@
 #include<iostream>
 #include<eigen/dense>
 #include<cmath>
+#include<vector>
+#include <algorithm> 
 #include "VertexShader.h"
 #include "Framebuffer.h"
 
@@ -60,6 +62,15 @@ namespace LittleSGR {
 		const Varing& operator[](size_t i) const { return VaringData[i]; }
 	};
 
+	struct BoundingBox
+	{
+		BoundingBox() {};
+		BoundingBox(int minX, int minY, int maxX, int maxY)
+			:MinX(minX), MinY(minY), MaxX(maxX), MaxY(maxY){}
+
+		int MinX, MinY, MaxX, MaxY;
+	};
+
 	class Renderer {
 	private:
 		enum class Plane {
@@ -83,10 +94,13 @@ namespace LittleSGR {
 
 		static void Rasterization(VaringTriangle vTriangle, FrameBuffer& framebuffer);
 
+		static BoundingBox GetBoundingBox(const VaringTriangle vTriangle, const int width, const int height);
+		static float Clamp(float val, float min, float max);
+
 	private:
-		static void VertexShader(const Vertex vertex, Varing& varings, Uniform uniforms);	//	执行顶点着色器的函数
-		static void GetNdcPos(Varing* varing, int vertexNum);	//	执行透视除法
-		static void GetFragPos(Varing* varing, int vertexNum, int width, int height);	//	执行视口变换
+		static void VertexShader(const Vertex vertex, Varing& varings, Uniform uniforms, FrameBuffer fb);	//	执行顶点着色器的函数
+		static void AddNdcPos(Varing* varing, int vertexNum);	//	执行透视除法
+		static void AddFragPos(Varing* varing, int vertexNum, int width, int height);	//	执行视口变换
 
 	private:	//	视口裁剪、视口裁剪后的画线方法
 		static void DrawLine(Vector2i v0, Vector2i v1, FrameBuffer& fb, Vector3f color);

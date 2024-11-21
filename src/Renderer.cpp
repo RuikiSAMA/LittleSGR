@@ -23,25 +23,65 @@ namespace LittleSGR {
 	}
 
 	bool Renderer::FrustumCull(Varing* varing) {
+		bool b00, b01, b02;
+		b00 = IsInFrustum(varing[0]);
+		b01 = IsInFrustum(varing[1]);
+		b02 = IsInFrustum(varing[2]);
+
 		return false;
 	}
 
-	void Renderer::VertexShader(const Vertex vertex, Varing& varings, Uniform uniforms) {
+	float Renderer::Clamp(float val, float min, float max) {
+		if (val > max)
+			return max;
+		else if (val < min)
+			return min;
+		else
+			return val;
+	}
+
+	BoundingBox Renderer::GetBoundingBox(const VaringTriangle vTriangle, const int width, const int height) {
+		std::vector<float> XList = { vTriangle[0].FragPos.x(), vTriangle[0].FragPos.x(), vTriangle[0].FragPos.x() };
+		std::vector<float> YList = { vTriangle[0].FragPos.y(), vTriangle[0].FragPos.y(), vTriangle[0].FragPos.y() };
+
+		float minX = *(std::min_element(XList.begin(), XList.end()));
+		float maxX = *(std::max_element(XList.begin(), XList.end()));
+		float minY = *(std::min_element(YList.begin(), YList.end()));
+		float maxY = *(std::max_element(YList.begin(), YList.end()));
+
+		minX = Clamp(minX, 0.0f, (float)(width - 1));
+		maxX = Clamp(maxX, 0.0f, (float)(width - 1));
+		minY = Clamp(minY, 0.0f, (float)(height - 1));
+		maxY = Clamp(maxY, 0.0f, (float)(height - 1));
+
+		BoundingBox bbox;
+		bbox.MinX = std::floor(minX);	//	向下取整
+		bbox.MinY = std::floor(minY);
+		bbox.MaxX = std::ceil(maxX);	//	向上取整
+		bbox.MaxY = std::ceil(maxY);
+
+		return bbox;
+	}
+
+	void Renderer::VertexShader(const Vertex vertex, Varing& varings, Uniform uniforms, FrameBuffer fb) {
+		float aspect = fb.GetWidth() / fb.GetHeight();
+		//Frustum frustum(aspect);
+		Camera camera;
 		Frustum frustum(1.0f, 1.0f, 10.0f, 90.0f / 180.0f * PI);
-		Matrix4f Pmat = ProjectTransMat(frustum);
+		Matrix4f Pmat = ProjectTransMat(frustum) * ViewTransMat(camera) * Matrix4f::Identity();
 		//std::cout << "P:" << Pmat << std::endl;
 		uniforms.MVP = ProjectTransMat(frustum);
 		varings.ClipPos = uniforms.MVP * vertex.ModelPos;
 	}
 
-	void Renderer::GetNdcPos(Varing* varing, int vertexNum) {
+	void Renderer::AddNdcPos(Varing* varing, int vertexNum) {
 		for (int i = 0; i < vertexNum; i++) {
 			varing[i].NdcPos = varing[i].ClipPos * (1.0 / varing[i].ClipPos.w());
 			std::cout << "NdcPos[" << i << "]" << varing[i].NdcPos << std::endl;
 		}
 	}
 
-	void Renderer::GetFragPos(Varing* varing, int vertexNum, int width, int height) {
+	void Renderer::AddFragPos(Varing* varing, int vertexNum, int width, int height) {
 		for (int i = 0; i < vertexNum; i++) {
 			varing[i].FragPos.x() = (varing[i].NdcPos.x() + 1) * 0.5f * width;
 			varing[i].FragPos.y() = (varing[i].NdcPos.y() + 1) * 0.5f * height;
@@ -52,6 +92,20 @@ namespace LittleSGR {
 
 	void Renderer::Rasterization(VaringTriangle vTriangle, FrameBuffer& framebuffer) {
 		
+		BoundingBox BBox = GetBoundingBox(vTriangle, framebuffer.GetWidth(), framebuffer.GetHeight());
+
+		for (int i = 0; i < 3; i ++ ){
+			int x = vTriangle[i].FragPos.x();
+			int y = vTriangle[i].FragPos.y();
+
+			float r = (vTriangle[i].NdcPos.x() + 1.0f) / 2.0f;
+			float g = (vTriangle[i].NdcPos.y() + 1.0f) / 2.0f;
+
+			for (int j = -5; j < 6; j++ )
+				for (int k = -5; k < 6; k++ )
+					framebuffer.SetColorbuffer(x + j, y + k, Vector3f{ r,g,1.0f });		
+		}
+
 		//Vector2i v0((int)vTriangle[0].FragPos.x(), (int)vTriangle[0].FragPos.y());
 		//Vector2i v1((int)vTriangle[1].FragPos.x(), (int)vTriangle[1].FragPos.y());
 		//Vector2i v2((int)vTriangle[2].FragPos.x(), (int)vTriangle[2].FragPos.y());
@@ -64,16 +118,18 @@ namespace LittleSGR {
 	void Renderer::Draw(FrameBuffer& framebuffer, VertexTriangle vertexTriangle, Uniform unifrom) {
 		Varing varing[9];	//	三角形经过裁剪最多形成9个顶点的多边形
 		for (int i = 0; i < 3; i++)
-			VertexShader(vertexTriangle[i], varing[i], unifrom);	//	对三角形每个顶点执行顶点着色器
+			VertexShader(vertexTriangle[i], varing[i], unifrom, framebuffer);	//	对三角形每个顶点执行顶点着色器
+
 		if (FrustumCull(varing))	//	进行视椎剔除
 			return;
-		int VertexNum = ClipVertex(varing);
 
-		GetNdcPos(varing, VertexNum);	//	进行透视除法
+		int VertexNum = ClipVertex(varing);	//	齐次空间裁剪
+
+		AddNdcPos(varing, VertexNum);	//	进行透视除法
 		int fbWidth = framebuffer.GetWidth();
 		int fbHeight = framebuffer.GetHeight();
 
-		GetFragPos(varing, VertexNum, fbWidth, fbHeight);	//	进行视口变换
+		AddFragPos(varing, VertexNum, fbWidth, fbHeight);	//	进行视口变换
 
 		if (VertexNum == 3) {
 			VaringTriangle vTriangle;
@@ -233,29 +289,6 @@ namespace LittleSGR {
 			}
 		}
 
-		//fb->SetColorbuffer(v0.x(), v0.y(), Vector3f(1, 0, 0));
-		//fb->SetColorbuffer(v1.x(), v1.y(), Vector3f(1, 0, 0));
-		//int y = v0.y();
-		//int e = 0;
-		//for (int i = 1; i < dx; i++) {	// e(i+1) == ei + k == ei + dy/dx 
-		//	e = 2 * dx * e + 2 * dy;	// 2dx * e(i+1) == 2dx * ei + 2 * dy
-		//	const int d = e;
-		//	if (d >= dx) {				// 2dx * ( e(i+1) ? 0.5 ) == 2dx * e(i+1) ? dx	
-		//		y++;
-		//		if (swap)
-		//			fb->SetColorbuffer(v0.y() + y, v0.x() + i, Vector3f(1, 1, 1));
-		//		else
-		//			fb->SetColorbuffer(v0.x() + i, v0.y() + y, Vector3f(1, 1, 1));
-		//		e -= 2 * dx;			// 2dx * (e(i+1) - 1) == 2dx * e(i+1) - 2dx
-		//	}
-		//	if (d < dx) {
-		//		if (swap)
-		//			fb->SetColorbuffer(v0.y() + y, v0.x() + i, Vector3f(1, 1, 1));
-		//		else
-		//			fb->SetColorbuffer(v0.x() + i, v0.y() + y, Vector3f(1, 1, 1));
-		//	}
-		//}
-
 		/* 中点算法
 		设 e(i+1) 为 k + yi
 
@@ -320,7 +353,7 @@ namespace LittleSGR {
 	}
 
 	int Renderer::ClippingPlane(const Varing* invarings, Varing* outvarings, Plane plane, int InVertexNum) {
-		//	Suntherland hodgman算法
+		//	Sutherland hodgman算法
 		int OutVertexNum = 0;	//	输出顶点数量、输出顶点的索引
 		for (int i = 0; i < InVertexNum; i++) {
 			int lastIndex = (i - 1 + InVertexNum) % InVertexNum;	//	上一个顶点的索引，+size 再 %size 防止出现负数
@@ -352,27 +385,6 @@ namespace LittleSGR {
 		vOut.ClipPos.z() = v0.ClipPos.z() + ratio * (v1.ClipPos.z() - v0.ClipPos.z());
 		vOut.ClipPos.w() = v0.ClipPos.w() + ratio * (v1.ClipPos.w() - v0.ClipPos.w());
 		return vOut;
-		//switch (plane)
-		//{
-		//case LittleSGR::Renderer::Plane::POSITIVE_X:
-		//	vOut.ClipPos.x() = v0.ClipPos.x() + ratio * (v1.ClipPos.x() - v0.ClipPos.x());
-		//	return vOut;
-		//case LittleSGR::Renderer::Plane::POSITIVE_Y:
-		//	vOut.ClipPos.y() = v0.ClipPos.y() + ratio * (v1.ClipPos.y() - v0.ClipPos.y());
-		//	return vOut;
-		//case LittleSGR::Renderer::Plane::Z_FAR:
-		//	vOut.ClipPos.z() = v0.ClipPos.z() + ratio * (v1.ClipPos.z() - v0.ClipPos.z());
-		//	return vOut;
-		//case LittleSGR::Renderer::Plane::NEGATIVE_X:
-		//	vOut.ClipPos.x() = v0.ClipPos.x() + ratio * (v1.ClipPos.x() - v0.ClipPos.x());
-		//	return vOut;
-		//case LittleSGR::Renderer::Plane::NEGATIVE_Y:
-		//	vOut.ClipPos.y() = v0.ClipPos.y() + ratio * (v1.ClipPos.y() - v0.ClipPos.y());
-		//	return vOut;
-		//case LittleSGR::Renderer::Plane::Z_NEAR:
-		//	vOut.ClipPos.z() = v0.ClipPos.z() + ratio * (v1.ClipPos.z() - v0.ClipPos.z());
-		//	return vOut;
-		//}
 	}
 
 	bool Renderer::IsInPlane(Varing varing, Plane plane) {

@@ -17,7 +17,7 @@ namespace LittleSGR {
 		ClearZBuffer();
 	}
 
-	FrameBuffer::FrameBuffer(const FrameBuffer& other) 	//	谨防浅拷贝！TAT  --2024.11.12 23:05
+	FrameBuffer::FrameBuffer(const FrameBuffer& other) 	//	谨防浅拷贝！
 		: m_Width(other.m_Width),
 		m_Height(other.m_Height),
 		m_Size(other.m_Size),
@@ -33,14 +33,15 @@ namespace LittleSGR {
 		m_ColorBuffer = nullptr;
 		m_ZBuffer = nullptr;
 	}
-
 	void FrameBuffer::SetColorbuffer(const int x, const int y, const Vector3f rgb) {
 		int i = GetPixelIndex(x, y);
-		std::cout << x << " , " << y << " : " << i << std::endl;
-		if (i >= 0 && i < m_Size)
+		std::cout << x << " , " << y << std::endl;
+		if ((x < 0) || (x >= m_Width) || (y < 0) || (y >= m_Height)) {
+			//ASSERT(0);
+		}
+		else{
 			m_ColorBuffer[i] = rgb;
-		else
-			ASSERT(0);
+		}
 	}
 
 	Vector3f FrameBuffer::GetColorbuffer(const int x, const int y) const {
