@@ -27,13 +27,17 @@ namespace LittleSGR {
 	}
 
 	void Renderer::VertexShader(const Vertex vertex, Varing& varings, Uniform uniforms) {
-		uniforms.MVP = ProjectTransMat(m_Frustum) * ViewTransMat(m_Camera) * Matrix4f::Identity();
+		Frustum frustum(1.0f, 1.0f, 10.0f, 90.0f / 180.0f * PI);
+		Matrix4f Pmat = ProjectTransMat(frustum);
+		//std::cout << "P:" << Pmat << std::endl;
+		uniforms.MVP = ProjectTransMat(frustum);
 		varings.ClipPos = uniforms.MVP * vertex.ModelPos;
 	}
 
 	void Renderer::GetNdcPos(Varing* varing, int vertexNum) {
 		for (int i = 0; i < vertexNum; i++) {
 			varing[i].NdcPos = varing[i].ClipPos * (1.0 / varing[i].ClipPos.w());
+			std::cout << "NdcPos[" << i << "]" << varing[i].NdcPos << std::endl;
 		}
 	}
 
@@ -48,13 +52,13 @@ namespace LittleSGR {
 
 	void Renderer::Rasterization(VaringTriangle vTriangle, FrameBuffer& framebuffer) {
 		
-		Vector2i v0((int)vTriangle[0].FragPos.x(), (int)vTriangle[0].FragPos.y());
-		Vector2i v1((int)vTriangle[1].FragPos.x(), (int)vTriangle[1].FragPos.y());
-		Vector2i v2((int)vTriangle[2].FragPos.x(), (int)vTriangle[2].FragPos.y());
-		
-		DrawLine_WithoutClip(v0, v1, framebuffer, Vector3f(1.0f, 1.0f, 1.0f));
-		DrawLine_WithoutClip(v1, v2, framebuffer, Vector3f(1.0f, 1.0f, 1.0f));
-		DrawLine_WithoutClip(v2, v0, framebuffer, Vector3f(1.0f, 1.0f, 1.0f));
+		//Vector2i v0((int)vTriangle[0].FragPos.x(), (int)vTriangle[0].FragPos.y());
+		//Vector2i v1((int)vTriangle[1].FragPos.x(), (int)vTriangle[1].FragPos.y());
+		//Vector2i v2((int)vTriangle[2].FragPos.x(), (int)vTriangle[2].FragPos.y());
+		//
+		//DrawLine(v0, v1, framebuffer, Vector3f(1.0f, 1.0f, 1.0f));
+		//DrawLine(v1, v2, framebuffer, Vector3f(1.0f, 1.0f, 1.0f));
+		//DrawLine(v2, v0, framebuffer, Vector3f(1.0f, 1.0f, 1.0f));
 	}
 
 	void Renderer::Draw(FrameBuffer& framebuffer, VertexTriangle vertexTriangle, Uniform unifrom) {
@@ -296,70 +300,79 @@ namespace LittleSGR {
 		int VertexNum = 3;
 		bool v0 = IsInFrustum(varings[0]);
 		bool v1 = IsInFrustum(varings[1]);
-		bool v2 = IsInFrustum(varings[2]);
+  		bool v2 = IsInFrustum(varings[2]);
 		if (v0 && v1 && v2)
 			return VertexNum;	//	若三角形三个顶点都在视椎内则不需要裁剪
 
 		Varing varings_[9];	//	使用双重缓存, 防止只使用一个顶点集时造成新的顶点将未处理的顶点数据覆盖的情况
 		//	将顶点集与所有视椎的面进行裁剪
-		ClippingPlane(varings, varings_, Plane::POSITIVE_W, VertexNum);
-		ClippingPlane(varings_, varings, Plane::POSITIVE_X, VertexNum);
-		ClippingPlane(varings, varings_, Plane::NEGATIVE_X, VertexNum);
-		ClippingPlane(varings_, varings, Plane::POSITIVE_Y, VertexNum);
-		ClippingPlane(varings, varings_, Plane::NEGATIVE_Y, VertexNum);
-		ClippingPlane(varings_, varings, Plane::Z_FAR, VertexNum);
-		ClippingPlane(varings, varings_, Plane::Z_NEAR, VertexNum);
-		memcpy(varings, varings_, sizeof(varings_));	//	将最后一次裁剪后的结果复制回varings
+		
+		VertexNum = ClippingPlane(varings, varings_, Plane::POSITIVE_W, VertexNum); 
+		VertexNum = ClippingPlane(varings, varings_, Plane::Z_FAR, VertexNum);
+		VertexNum = ClippingPlane(varings_, varings, Plane::Z_NEAR, VertexNum);
+		VertexNum = ClippingPlane(varings, varings_, Plane::POSITIVE_X, VertexNum);
+		VertexNum = ClippingPlane(varings_, varings, Plane::NEGATIVE_X, VertexNum);
+		VertexNum = ClippingPlane(varings, varings_, Plane::POSITIVE_Y, VertexNum);
+		VertexNum = ClippingPlane(varings_, varings, Plane::NEGATIVE_Y, VertexNum);
+		varings = varings_;	//	将最后一次裁剪后的结果复制回varings
+		std::cout << "After Clip , vertex Count:" << VertexNum << std::endl;
 		return VertexNum;
 	}
 
-	void Renderer::ClippingPlane(Varing* invarings, Varing* outvarings, Plane plane, int& vertexnum) {
+	int Renderer::ClippingPlane(const Varing* invarings, Varing* outvarings, Plane plane, int InVertexNum) {
 		//	Suntherland hodgman算法
-		const int size = vertexnum;
-		int vertexCount = 0;	//	输出顶点数量、输出顶点的索引
-		for (int i = 0; i < size; i++) {
-			int lastIndex = (i - 1 + size) % size;	//	上一个顶点的索引，+size 再 %size 防止出现负数
+		int OutVertexNum = 0;	//	输出顶点数量、输出顶点的索引
+		for (int i = 0; i < InVertexNum; i++) {
+			int lastIndex = (i - 1 + InVertexNum) % InVertexNum;	//	上一个顶点的索引，+size 再 %size 防止出现负数
 
-			if ((!IsInPlane(invarings[i], plane)) || (!IsInPlane(invarings[i], plane))) {
+			if (IsInPlane(invarings[i], plane) != IsInPlane(invarings[lastIndex], plane)) {
 				//	若当前顶点与上一个顶点中有一个不在当前面里侧，则两顶点连线一定会穿过平面
 				float ratio = IntersectRatio(invarings[i], invarings[lastIndex], plane);
-				outvarings[vertexCount] = VaringLerp(invarings[i], invarings[lastIndex], ratio);
-				vertexCount++;
+				//std::cout << "Ratio:" << ratio << std::endl;
+				outvarings[OutVertexNum] = VaringLerp(invarings[i], invarings[lastIndex], ratio, plane);
+				//std::cout << "CurrentPos:" << invarings[i].ClipPos << std::endl;
+				//std::cout << "LastPos:" << invarings[lastIndex].ClipPos << std::endl;
+				//std::cout << "IntersectPos:" << outvarings[OutVertexNum].ClipPos << std::endl;
+				OutVertexNum++;
 			}
 
-			if (IsInFrustum(invarings[i])) {	//	若当前顶点在当前面里侧，则在输出顶点中加入当前顶点，输出顶点数量+1
-				outvarings[vertexCount] = invarings[i];
-				vertexCount++;
+			if (IsInPlane(invarings[i], plane)) {	//	若当前顶点在当前面里侧，则在输出顶点中加入当前顶点，输出顶点数量+1
+				outvarings[OutVertexNum] = invarings[i];
+				OutVertexNum++;
 			}
 		}
-		vertexnum = vertexCount;
+		std::cout << "vertex Count:" << OutVertexNum << std::endl;
+		return OutVertexNum;
 	}
 
-	Varing Renderer::VaringLerp(Varing v0, Varing v1, float ratio) {
+	Varing Renderer::VaringLerp(Varing v0, Varing v1, float ratio, Plane plane) {
 		Varing vOut;
-		vOut.ClipPos = v0.ClipPos + ratio * (v1.ClipPos - v0.ClipPos);
-		vOut.TexCoor = v0.TexCoor + ratio * (v1.TexCoor - v0.TexCoor);
+		vOut.ClipPos.x() = v0.ClipPos.x() + ratio * (v1.ClipPos.x() - v0.ClipPos.x());
+		vOut.ClipPos.y() = v0.ClipPos.y() + ratio * (v1.ClipPos.y() - v0.ClipPos.y());
+		vOut.ClipPos.z() = v0.ClipPos.z() + ratio * (v1.ClipPos.z() - v0.ClipPos.z());
+		vOut.ClipPos.w() = v0.ClipPos.w() + ratio * (v1.ClipPos.w() - v0.ClipPos.w());
 		return vOut;
-	}
-
-	float Renderer::IntersectRatio(Varing v0, Varing v1, Plane plane) {
-		switch (plane)
-		{
-		case LittleSGR::Renderer::Plane::POSITIVE_W:
-			return (v0.ClipPos.w() - 0.0f) / (v0.ClipPos.w() - 0.0f) - (v1.ClipPos.w() - 0.0f);
-		case LittleSGR::Renderer::Plane::POSITIVE_X:
-			return (v0.ClipPos.x() - v0.ClipPos.w()) / (v0.ClipPos.x() - v0.ClipPos.w()) - (v1.ClipPos.x() - v1.ClipPos.w());
-		case LittleSGR::Renderer::Plane::POSITIVE_Y:
-			return (v0.ClipPos.y() - v0.ClipPos.w()) / (v0.ClipPos.y() - v0.ClipPos.w()) - (v1.ClipPos.y() - v1.ClipPos.w());
-		case LittleSGR::Renderer::Plane::Z_FAR:
-			return (v0.ClipPos.z() - v0.ClipPos.w()) / (v0.ClipPos.z() - v0.ClipPos.w()) - (v1.ClipPos.z() - v1.ClipPos.w());
-		case LittleSGR::Renderer::Plane::NEGATIVE_X:
-			return (v0.ClipPos.x() - (-v0.ClipPos.w())) / (v0.ClipPos.x() - (-v0.ClipPos.w())) - (v1.ClipPos.x() - (-v1.ClipPos.w()));
-		case LittleSGR::Renderer::Plane::NEGATIVE_Y:
-			return (v0.ClipPos.y() - (-v0.ClipPos.w())) / (v0.ClipPos.y() - (-v0.ClipPos.w())) - (v1.ClipPos.y() - (-v1.ClipPos.w()));
-		case LittleSGR::Renderer::Plane::Z_NEAR:
-			return (v0.ClipPos.z() - (-v0.ClipPos.w())) / (v0.ClipPos.z() - (-v0.ClipPos.w())) - (v1.ClipPos.z() - (-v1.ClipPos.w()));
-		}
+		//switch (plane)
+		//{
+		//case LittleSGR::Renderer::Plane::POSITIVE_X:
+		//	vOut.ClipPos.x() = v0.ClipPos.x() + ratio * (v1.ClipPos.x() - v0.ClipPos.x());
+		//	return vOut;
+		//case LittleSGR::Renderer::Plane::POSITIVE_Y:
+		//	vOut.ClipPos.y() = v0.ClipPos.y() + ratio * (v1.ClipPos.y() - v0.ClipPos.y());
+		//	return vOut;
+		//case LittleSGR::Renderer::Plane::Z_FAR:
+		//	vOut.ClipPos.z() = v0.ClipPos.z() + ratio * (v1.ClipPos.z() - v0.ClipPos.z());
+		//	return vOut;
+		//case LittleSGR::Renderer::Plane::NEGATIVE_X:
+		//	vOut.ClipPos.x() = v0.ClipPos.x() + ratio * (v1.ClipPos.x() - v0.ClipPos.x());
+		//	return vOut;
+		//case LittleSGR::Renderer::Plane::NEGATIVE_Y:
+		//	vOut.ClipPos.y() = v0.ClipPos.y() + ratio * (v1.ClipPos.y() - v0.ClipPos.y());
+		//	return vOut;
+		//case LittleSGR::Renderer::Plane::Z_NEAR:
+		//	vOut.ClipPos.z() = v0.ClipPos.z() + ratio * (v1.ClipPos.z() - v0.ClipPos.z());
+		//	return vOut;
+		//}
 	}
 
 	bool Renderer::IsInPlane(Varing varing, Plane plane) {
@@ -367,26 +380,51 @@ namespace LittleSGR {
 		{
 		case LittleSGR::Renderer::Plane::POSITIVE_W:
 			//	先剔除掉w值为负的顶点，这类顶点在z轴正侧，不可能满足下列任何条件，先剔除掉减少计算量。先进行near剔除也可以。
-			return varing.ClipPos.w() > 0.0f;
+			return varing.ClipPos.w() > epsilon;
 		case LittleSGR::Renderer::Plane::POSITIVE_X:
-			return varing.ClipPos.x() < varing.ClipPos.w();
+			return varing.ClipPos.x() - varing.ClipPos.w() <= epsilon;
 		case LittleSGR::Renderer::Plane::POSITIVE_Y:
-			return varing.ClipPos.y() < varing.ClipPos.w();
+			return varing.ClipPos.y() - varing.ClipPos.w() <= epsilon;
 		case LittleSGR::Renderer::Plane::Z_FAR:
-			return varing.ClipPos.z() < varing.ClipPos.w();
+			return varing.ClipPos.z() - varing.ClipPos.w() <= epsilon;
 		case LittleSGR::Renderer::Plane::NEGATIVE_X:
-			return varing.ClipPos.x() > -varing.ClipPos.w();
+			return varing.ClipPos.x() + varing.ClipPos.w() >= epsilon;
 		case LittleSGR::Renderer::Plane::NEGATIVE_Y:
-			return varing.ClipPos.y() > -varing.ClipPos.w();
+			return varing.ClipPos.y() + varing.ClipPos.w() >= epsilon;
 		case LittleSGR::Renderer::Plane::Z_NEAR:
-			return varing.ClipPos.z() > -varing.ClipPos.w();
+			return varing.ClipPos.z() + varing.ClipPos.w() >= epsilon;
+		}
+	}
+
+	float Renderer::IntersectRatio(Varing v0, Varing v1, Plane plane) {
+		switch (plane)
+		{
+		case LittleSGR::Renderer::Plane::POSITIVE_W:
+			return (v0.ClipPos.w() - 0.0f) / ((v0.ClipPos.w() - 0.0f) - (v1.ClipPos.w() - 0.0f));
+		case LittleSGR::Renderer::Plane::POSITIVE_X:
+			return (v0.ClipPos.w() - v0.ClipPos.x()) / ((v0.ClipPos.w() - v0.ClipPos.x()) - (v1.ClipPos.w() - v1.ClipPos.x()));
+		case LittleSGR::Renderer::Plane::POSITIVE_Y:
+			return (v0.ClipPos.w() - v0.ClipPos.y()) / ((v0.ClipPos.w() - v0.ClipPos.y()) - (v1.ClipPos.w() - v1.ClipPos.y()));
+		case LittleSGR::Renderer::Plane::Z_FAR:
+			return (v0.ClipPos.w() - v0.ClipPos.z()) / ((v0.ClipPos.w() - v0.ClipPos.z()) - (v1.ClipPos.w() - v1.ClipPos.z()));
+		case LittleSGR::Renderer::Plane::NEGATIVE_X:
+			return (v0.ClipPos.w() - (-v0.ClipPos.x())) / ((v0.ClipPos.w() - (-v0.ClipPos.x())) - (v1.ClipPos.w() - (-v1.ClipPos.x())));
+		case LittleSGR::Renderer::Plane::NEGATIVE_Y:
+			return (v0.ClipPos.w() - (-v0.ClipPos.y())) / ((v0.ClipPos.w() - (-v0.ClipPos.y())) - (v1.ClipPos.w() - (-v1.ClipPos.y())));
+		case LittleSGR::Renderer::Plane::Z_NEAR:
+			return (v0.ClipPos.w() - (-v0.ClipPos.z())) / ((v0.ClipPos.w() - (-v0.ClipPos.z())) - (v1.ClipPos.w() - (-v1.ClipPos.z())));
 		}
 	}
 
 	bool Renderer::IsInFrustum(Varing varing) {
-		bool IsX = std::abs(varing.ClipPos.x()) < varing.ClipPos.w();
-		bool IsY = std::abs(varing.ClipPos.y()) < varing.ClipPos.w();
-		bool IsZ = std::abs(varing.ClipPos.z()) < varing.ClipPos.w();
+		float W = std::fabs(varing.ClipPos.w());
+		float X = std::fabs(varing.ClipPos.x());
+		float Y = std::fabs(varing.ClipPos.y());
+		float Z = std::fabs(varing.ClipPos.z());
+		//std::cout << X << ' ' << W << std::endl;
+		bool IsX = X - W <= epsilon;
+		bool IsY = Y - W <= epsilon;
+		bool IsZ = Z - W <= epsilon;
 		//	通过判断Clip空间中的x、y、z值是否在[-w,w]内来判断顶点是否在视椎内部
 		//	https://www.notion.so/1433146ac7c0807592f1d60c2f10f0c3?pvs=4
 		if (IsX && IsY && IsZ)

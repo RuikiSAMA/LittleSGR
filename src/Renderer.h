@@ -1,4 +1,5 @@
 #pragma once
+#include<iostream>
 #include<eigen/dense>
 #include<cmath>
 #include "VertexShader.h"
@@ -9,6 +10,7 @@
 #define RIGHT 0b0010
 #define BOTTOM 0b0100
 #define TOP 0b1000
+const float epsilon = 1e-6;
 
 using namespace Eigen;
 
@@ -105,13 +107,13 @@ namespace LittleSGR {
 		static bool IsInPlane(Varing varing, Plane plane);
 		//	判断点是否在平面里侧
 
-		static void ClippingPlane(Varing* invarings, Varing* outvarings, Plane plane, int& vertexnum);
+		static int ClippingPlane(const Varing* invarings, Varing* outvarings, Plane plane, int vertexnum);
 		//	用平面对点进行裁剪，输出 顶点数目VertexNum、裁剪后的顶点数outVarings(包括裁剪新生成的顶点)
 
 		static float IntersectRatio(Varing v0, Varing v1, Plane plane);
 		//	获取交点对两顶点的线性差值比例
 
-		static Varing VaringLerp(Varing v0, Varing v1, float ratio);
+		static Varing VaringLerp(Varing v0, Varing v1, float ratio, Plane plane);
 		//	获取交点
 
 	private:

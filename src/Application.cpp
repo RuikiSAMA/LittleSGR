@@ -29,13 +29,14 @@ namespace LittleSGR {
 	void Application::OnUpdate()
 	{
 		FrameBuffer fb(m_Width, m_Height);
+		m_Window->DrawFrameBuffer(fb);
 		VertexTriangle vTriangle;
 		Uniform uniform;
 		vTriangle[0].ModelPos = { -10.0f, 10.0f, -10.0f, 1.0f };
 		vTriangle[1].ModelPos = { -10.0f, -10.0f, -10.0f, 1.0f };
 		vTriangle[2].ModelPos = { 30.0f, -10.0f, -10.0f, 1.0f };
+
 		Renderer::Draw(fb, vTriangle, uniform);
-		m_Window->DrawFrameBuffer(fb);
 	}
 
 	Application::~Application() {

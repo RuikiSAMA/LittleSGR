@@ -118,7 +118,7 @@ namespace LittleSGR {
 		Projection_Trans <<
 			1 / (frustum.FrustumAspect * tan(frustum.FrustumFovY / 2)), 0, 0, 0,
 			0, 1 / tan(frustum.FrustumFovY / 2), 0, 0,
-			0, 0, (frustum.FrustumNear + frustum.FrustumFar) / (frustum.FrustumNear - frustum.FrustumFar), 2 * frustum.FrustumNear * frustum.FrustumFar / frustum.FrustumFar - frustum.FrustumNear,
+			0, 0, -(frustum.FrustumNear + frustum.FrustumFar) / (frustum.FrustumFar - frustum.FrustumNear), -2 * frustum.FrustumNear * frustum.FrustumFar / (frustum.FrustumFar - frustum.FrustumNear),
 			0, 0, -1, 0;
 		return Projection_Trans;
 	}
