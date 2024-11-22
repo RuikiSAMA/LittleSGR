@@ -10,7 +10,7 @@ const Vector3f DEFAULT_CAMERA_TOP{ 0, 1.0f, 0 };
 const Vector3f DEFAULT_CAMERA_POS{ 0, 0, 0 };
 const Vector3f DEFAULT_CAMERA_X{ 1.0f, 0, 0 };
 const Vector3f DEFAULT_CAMERA_Y{ 0, 1.0f, 0 };
-const Vector3f DEFAULT_CAMERA_Z{ 0, 0, -1.0f };
+const Vector3f DEFAULT_CAMERA_Z{ 0, 0, 1.0f };
 const float DEFAULT_FRUSTUM_FOVY = (45 / 180) * PI;
 const int DEFAULT_FRUSTUM_NEAR = 1;
 const int DEFAULT_FRUSTUM_FAR = 10;

@@ -33,7 +33,7 @@ namespace LittleSGR {
 			: ClipPos(pos), TexCoor(uv) {}
 		Vector4f ClipPos;
 		Vector4f NdcPos;
-		Vector4f FragPos;
+		Vector4f ScreenPos;
 		Vector2f TexCoor;
 	};
 
@@ -64,7 +64,7 @@ namespace LittleSGR {
 
 	struct BoundingBox
 	{
-		BoundingBox() {};
+		BoundingBox() {}
 		BoundingBox(int minX, int minY, int maxX, int maxY)
 			:MinX(minX), MinY(minY), MaxX(maxX), MaxY(maxY){}
 
@@ -88,25 +88,30 @@ namespace LittleSGR {
 		~Renderer();
 
 		static void Draw(FrameBuffer& framebuffer, VertexTriangle triangle, Uniform unifrom);
-		static bool FrustumCull(Varing* varing);	//	视椎剔除
 
 		static void init(int width, int height, Frustum frustum, Camera camera, float aspect);
 
-		static void Rasterization(VaringTriangle vTriangle, FrameBuffer& framebuffer);
-
-		static BoundingBox GetBoundingBox(const VaringTriangle vTriangle, const int width, const int height);
-		static float Clamp(float val, float min, float max);
+	private:
+		static bool FrustumCull(Varing* varing);	//	视椎剔除
+		static void Rasterize(VaringTriangle vTriangle, FrameBuffer& framebuffer);	//	光栅化
+		static BoundingBox ComputeBoundingBox(const VaringTriangle vTriangle, const int width, const int height);	//	计算包围盒
+		static float Clamp(float val, float min, float max);	//	取范围内的值
+		static void ComputeScreenWeightCoor(VaringTriangle vTriangle, float* screenWC, Vector2f ScreenPos);	//	计算屏幕坐标下的重心坐标
+		static void ComputeWeightCoor(VaringTriangle vTriangle, float* WC, Vector2f ScreenPos);	//	计算差值矫正后的重心坐标
+		static bool IsInTriangle(float* WC);
+		static void LerpVaringTriangle(float* Weight, Varing& ScreenPoint, VaringTriangle vTriangle);
 
 	private:
 		static void VertexShader(const Vertex vertex, Varing& varings, Uniform uniforms, FrameBuffer fb);	//	执行顶点着色器的函数
+		static void FragmentShader(const Varing varing, FrameBuffer& framebuffer);
 		static void AddNdcPos(Varing* varing, int vertexNum);	//	执行透视除法
-		static void AddFragPos(Varing* varing, int vertexNum, int width, int height);	//	执行视口变换
+		static void AddScreenPos(Varing* varing, int vertexNum, int width, int height);	//	执行视口变换
 
 	private:	//	视口裁剪、视口裁剪后的画线方法
-		static void DrawLine(Vector2i v0, Vector2i v1, FrameBuffer& fb, Vector3f color);
 		static void DrawLine_WithoutClip(Vector2i v0, Vector2i v1, FrameBuffer& fb, Vector3f color);
-		static int ComputeOutCode(Vector2i v);
 		static bool ClipLine(Vector2i& v0, Vector2i& v1);
+		static int ComputeOutCode(Vector2i v);
+		static void DrawLine(Vector2i v0, Vector2i v1, FrameBuffer& fb, Vector3f color);
 
 	private:
 		//	在Clip空间中对三角形进行裁剪，并在被裁掉的边上添加新顶点的方法，入口为 ClipVertex()
@@ -127,7 +132,7 @@ namespace LittleSGR {
 		static float IntersectRatio(Varing v0, Varing v1, Plane plane);
 		//	获取交点对两顶点的线性差值比例
 
-		static Varing VaringLerp(Varing v0, Varing v1, float ratio, Plane plane);
+		static Varing LerpVaring(Varing v0, Varing v1, float ratio, Plane plane);
 		//	获取交点
 
 	private:

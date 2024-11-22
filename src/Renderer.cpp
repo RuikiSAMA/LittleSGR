@@ -14,6 +14,7 @@ namespace LittleSGR {
 	}
 
 	Renderer::~Renderer() {
+
 	}
 
 	void Renderer::init(int width, int height, Frustum frustum, Camera camera, float aspect) {
@@ -40,9 +41,9 @@ namespace LittleSGR {
 			return val;
 	}
 
-	BoundingBox Renderer::GetBoundingBox(const VaringTriangle vTriangle, const int width, const int height) {
-		std::vector<float> XList = { vTriangle[0].FragPos.x(), vTriangle[0].FragPos.x(), vTriangle[0].FragPos.x() };
-		std::vector<float> YList = { vTriangle[0].FragPos.y(), vTriangle[0].FragPos.y(), vTriangle[0].FragPos.y() };
+	BoundingBox Renderer::ComputeBoundingBox(const VaringTriangle vTriangle, const int width, const int height) {
+		std::vector<float> XList = { vTriangle[0].ScreenPos.x(), vTriangle[1].ScreenPos.x(), vTriangle[2].ScreenPos.x() };
+		std::vector<float> YList = { vTriangle[0].ScreenPos.y(), vTriangle[1].ScreenPos.y(), vTriangle[2].ScreenPos.y() };
 
 		float minX = *(std::min_element(XList.begin(), XList.end()));
 		float maxX = *(std::max_element(XList.begin(), XList.end()));
@@ -63,56 +64,126 @@ namespace LittleSGR {
 		return bbox;
 	}
 
+	void Renderer::ComputeScreenWeightCoor(VaringTriangle vTriangle, float* screenWC, Vector2f ScreenPos) {
+		Vector2f AP(ScreenPos.x() - vTriangle[0].ScreenPos.x(), ScreenPos.y() - vTriangle[0].ScreenPos.y());
+		Vector2f AB(vTriangle[1].ScreenPos.x() - vTriangle[0].ScreenPos.x(), vTriangle[1].ScreenPos.y() - vTriangle[0].ScreenPos.y());
+		Vector2f AC(vTriangle[2].ScreenPos.x() - vTriangle[0].ScreenPos.x(), vTriangle[2].ScreenPos.y() - vTriangle[0].ScreenPos.y());
+		float s = (AP.x() * AC.y() - AP.y() * AC.x()) / (AB.x() * AC.y() - AB.y() * AC.x());
+		float t = (AP.x() * AB.y() - AP.y() * AB.x()) / (AB.x() * AC.y() - AB.y() * AC.x());
+		screenWC[0] = 1 - s - t;
+		screenWC[1] = s;
+		screenWC[2] = t;
+	}
+
+	void Renderer::ComputeWeightCoor(VaringTriangle vTriangle, float* WC, Vector2f ScreenPos) {
+		float screenWeightCoor[3];
+		ComputeScreenWeightCoor(vTriangle, screenWeightCoor, ScreenPos);
+		float Pw = 1 /
+			(screenWeightCoor[0] / vTriangle[0].NdcPos.w()
+				+ screenWeightCoor[1] / vTriangle[1].NdcPos.w()
+				+ screenWeightCoor[2] / vTriangle[2].NdcPos.w());
+		WC[0] = Pw * screenWeightCoor[0] / vTriangle[0].NdcPos.w();
+		WC[1] = Pw * screenWeightCoor[1] / vTriangle[1].NdcPos.w();
+		WC[2] = Pw * screenWeightCoor[2] / vTriangle[2].NdcPos.w();
+	}
+
+	bool Renderer::IsInTriangle(float* WC) {
+		const float Epsilon = 1e-4;
+		return (WC[0] >= -Epsilon) && (WC[1] >= -Epsilon) && (WC[2] >= -Epsilon);
+	}
+
+	void Renderer::LerpVaringTriangle(float* Weight, Varing& ScreenPoint, VaringTriangle vTriangle) {
+		ScreenPoint.NdcPos = vTriangle[0].NdcPos * Weight[0] + vTriangle[1].NdcPos * Weight[1] + vTriangle[2].NdcPos * Weight[2];
+		ScreenPoint.ScreenPos = vTriangle[0].ScreenPos * Weight[0] + vTriangle[1].ScreenPos * Weight[1] + vTriangle[2].ScreenPos * Weight[2];
+		//ScreenPoint.ClipPos = vTriangle[0].ClipPos * Weight[0] + vTriangle[1].ClipPos * Weight[1] + vTriangle[2].ClipPos * Weight[2];
+		//ScreenPoint.TexCoor = vTriangle[0].TexCoor * Weight[0] + vTriangle[1].TexCoor * Weight[1] + vTriangle[2].TexCoor * Weight[2];
+	}
+	void Renderer::Rasterize(VaringTriangle vTriangle, FrameBuffer& framebuffer) {
+		std::cout << "Triangle Vertex: " << vTriangle[0].ScreenPos.x() << " , " <<
+			vTriangle[0].ScreenPos.y() << std::endl;
+		std::cout << "Triangle Vertex: " << vTriangle[1].ScreenPos.x() << " , " <<
+			vTriangle[1].ScreenPos.y() << std::endl;
+		std::cout << "Triangle Vertex: " << vTriangle[2].ScreenPos.x() << " , " <<
+			vTriangle[2].ScreenPos.y() << std::endl;
+
+		BoundingBox BBox = ComputeBoundingBox(vTriangle, framebuffer.GetWidth(), framebuffer.GetHeight());
+		std::cout << "BBox:" << std::endl;
+		std::cout << BBox.MinX << std::endl;
+		std::cout << BBox.MaxX << std::endl;
+		std::cout << BBox.MinY << std::endl;
+		std::cout << BBox.MaxY << std::endl;
+
+		for (int i = BBox.MinY; i <= BBox.MaxY; i++) {
+			for (int j = BBox.MinX; j <= BBox.MaxX; j++) {
+				//std::cout << "i: " << i << " j: " << j << std::endl;
+				Vector2f screenPos = { j + 0.5f, i + 0.5f};
+				float WeightCoor[3];	//	重心坐标
+				ComputeWeightCoor(vTriangle, WeightCoor, screenPos);	//	计算重心坐标
+
+				if (!IsInTriangle(WeightCoor)) 	//	判断是否在三角形中
+					continue;
+				
+				Varing ScreenPoint;
+				LerpVaringTriangle(WeightCoor, ScreenPoint, vTriangle);
+
+				FragmentShader(ScreenPoint, framebuffer);	
+			}
+		}
+		
+		//for (int i = 0; i < 3; i ++ ){
+		//	int x = vTriangle[i].ScreenPos.x();
+		//	int y = vTriangle[i].ScreenPos.y();
+
+		//	float r = (vTriangle[i].NdcPos.x() + 1.0f) / 2.0f;
+		//	float g = (vTriangle[i].NdcPos.y() + 1.0f) / 2.0f;
+
+		//	for (int j = -5; j < 6; j++ )
+		//		for (int k = -5; k < 6; k++ )
+		//			framebuffer.SetColorbuffer(x + j, y + k, Vector3f{ r,g,1.0f });		
+		//}
+
+		//Vector2i v0((int)vTriangle[0].ScreenPos.x(), (int)vTriangle[0].ScreenPos.y());
+		//Vector2i v1((int)vTriangle[1].ScreenPos.x(), (int)vTriangle[1].ScreenPos.y());
+		//Vector2i v2((int)vTriangle[2].ScreenPos.x(), (int)vTriangle[2].ScreenPos.y());
+		//
+		//DrawLine(v0, v1, framebuffer, Vector3f(1.0f, 1.0f, 1.0f));
+		//DrawLine(v1, v2, framebuffer, Vector3f(1.0f, 1.0f, 1.0f));
+		//DrawLine(v2, v0, framebuffer, Vector3f(1.0f, 1.0f, 1.0f));
+	}
+
+	void Renderer::FragmentShader(const Varing varing, FrameBuffer& framebuffer) {
+		Vector3f color;
+		color = { varing.NdcPos.x() / 2 + 0.5f, varing.NdcPos.y() / 2 + 0.5f ,1.0f };
+		color.x() = Clamp(color.x(), 0.0f, 1.0f);
+		color.y() = Clamp(color.y(), 0.0f, 1.0f);
+		color.z() = Clamp(color.z(), 0.0f, 1.0f);
+		framebuffer.SetColorbuffer(varing.ScreenPos.x(), varing.ScreenPos.y(), color);
+	}
+
 	void Renderer::VertexShader(const Vertex vertex, Varing& varings, Uniform uniforms, FrameBuffer fb) {
 		float aspect = fb.GetWidth() / fb.GetHeight();
 		//Frustum frustum(aspect);
 		Camera camera;
 		Frustum frustum(1.0f, 1.0f, 10.0f, 90.0f / 180.0f * PI);
-		Matrix4f Pmat = ProjectTransMat(frustum) * ViewTransMat(camera) * Matrix4f::Identity();
-		//std::cout << "P:" << Pmat << std::endl;
-		uniforms.MVP = ProjectTransMat(frustum);
+		uniforms.MVP = ProjectTransMat(frustum) * ViewTransMat(camera) * Matrix4f::Identity();
 		varings.ClipPos = uniforms.MVP * vertex.ModelPos;
 	}
 
 	void Renderer::AddNdcPos(Varing* varing, int vertexNum) {
 		for (int i = 0; i < vertexNum; i++) {
 			varing[i].NdcPos = varing[i].ClipPos * (1.0 / varing[i].ClipPos.w());
-			std::cout << "NdcPos[" << i << "]" << varing[i].NdcPos << std::endl;
+			varing[i].NdcPos.w() = varing[i].ClipPos.w();	//	存下ClipPos里面的w，后面差值矫正要用
+			//std::cout << "NdcPos[" << i << "]" << varing[i].NdcPos << std::endl;
 		}
 	}
 
-	void Renderer::AddFragPos(Varing* varing, int vertexNum, int width, int height) {
+	void Renderer::AddScreenPos(Varing* varing, int vertexNum, int width, int height) {
 		for (int i = 0; i < vertexNum; i++) {
-			varing[i].FragPos.x() = (varing[i].NdcPos.x() + 1) * 0.5f * width;
-			varing[i].FragPos.y() = (varing[i].NdcPos.y() + 1) * 0.5f * height;
-			varing[i].FragPos.z() = (varing[i].NdcPos.z() + 1) * 0.5;
-			varing[i].FragPos.w() = varing[i].NdcPos.w();
+			varing[i].ScreenPos.x() = (varing[i].NdcPos.x() + 1) * 0.5f * width;
+			varing[i].ScreenPos.y() = (varing[i].NdcPos.y() + 1) * 0.5f * height;
+			varing[i].ScreenPos.z() = (varing[i].NdcPos.z() + 1) * 0.5;
+			varing[i].ScreenPos.w() = varing[i].NdcPos.w();
 		}
-	}
-
-	void Renderer::Rasterization(VaringTriangle vTriangle, FrameBuffer& framebuffer) {
-		
-		BoundingBox BBox = GetBoundingBox(vTriangle, framebuffer.GetWidth(), framebuffer.GetHeight());
-
-		for (int i = 0; i < 3; i ++ ){
-			int x = vTriangle[i].FragPos.x();
-			int y = vTriangle[i].FragPos.y();
-
-			float r = (vTriangle[i].NdcPos.x() + 1.0f) / 2.0f;
-			float g = (vTriangle[i].NdcPos.y() + 1.0f) / 2.0f;
-
-			for (int j = -5; j < 6; j++ )
-				for (int k = -5; k < 6; k++ )
-					framebuffer.SetColorbuffer(x + j, y + k, Vector3f{ r,g,1.0f });		
-		}
-
-		//Vector2i v0((int)vTriangle[0].FragPos.x(), (int)vTriangle[0].FragPos.y());
-		//Vector2i v1((int)vTriangle[1].FragPos.x(), (int)vTriangle[1].FragPos.y());
-		//Vector2i v2((int)vTriangle[2].FragPos.x(), (int)vTriangle[2].FragPos.y());
-		//
-		//DrawLine(v0, v1, framebuffer, Vector3f(1.0f, 1.0f, 1.0f));
-		//DrawLine(v1, v2, framebuffer, Vector3f(1.0f, 1.0f, 1.0f));
-		//DrawLine(v2, v0, framebuffer, Vector3f(1.0f, 1.0f, 1.0f));
 	}
 
 	void Renderer::Draw(FrameBuffer& framebuffer, VertexTriangle vertexTriangle, Uniform unifrom) {
@@ -129,24 +200,16 @@ namespace LittleSGR {
 		int fbWidth = framebuffer.GetWidth();
 		int fbHeight = framebuffer.GetHeight();
 
-		AddFragPos(varing, VertexNum, fbWidth, fbHeight);	//	进行视口变换
+		AddScreenPos(varing, VertexNum, fbWidth, fbHeight);	//	进行视口变换
 
-		if (VertexNum == 3) {
+		//	将顶点连成三角形
+		for (int i = 0; i < VertexNum - 2; i++) {
 			VaringTriangle vTriangle;
-			for (int i = 0; i < 3; i++) {
-				vTriangle[i] = varing[i];
-			}
-			Rasterization(vTriangle, framebuffer);
-		}
-		else{	//	将顶点连成三角形
-			for (int i = 0; i < VertexNum - 2; i++) {
-				VaringTriangle vTriangle;
-				vTriangle[0] = varing[i];
-				vTriangle[1] = varing[i + 1];
-				vTriangle[2] = varing[i + 2];
+			vTriangle[0] = varing[0];
+			vTriangle[1] = varing[i + 1];
+			vTriangle[2] = varing[i + 2];
 
-				Rasterization(vTriangle, framebuffer);
-			}
+			Rasterize(vTriangle, framebuffer);	//	光栅化三角形
 		}
 	}
 
@@ -324,9 +387,6 @@ namespace LittleSGR {
 		2dx * (e(i+1) - 1) == 2dx * e(i+1) - 2dx
 		*/
 	}
-}
-
-namespace LittleSGR {
 
 	int Renderer::ClipVertex(Varing* varings) {
 		//	注：传入的数组大小应为9(裁剪三角形后最多产生9个顶点的多边形)
@@ -362,7 +422,7 @@ namespace LittleSGR {
 				//	若当前顶点与上一个顶点中有一个不在当前面里侧，则两顶点连线一定会穿过平面
 				float ratio = IntersectRatio(invarings[i], invarings[lastIndex], plane);
 				//std::cout << "Ratio:" << ratio << std::endl;
-				outvarings[OutVertexNum] = VaringLerp(invarings[i], invarings[lastIndex], ratio, plane);
+				outvarings[OutVertexNum] = LerpVaring(invarings[i], invarings[lastIndex], ratio, plane);
 				//std::cout << "CurrentPos:" << invarings[i].ClipPos << std::endl;
 				//std::cout << "LastPos:" << invarings[lastIndex].ClipPos << std::endl;
 				//std::cout << "IntersectPos:" << outvarings[OutVertexNum].ClipPos << std::endl;
@@ -374,16 +434,13 @@ namespace LittleSGR {
 				OutVertexNum++;
 			}
 		}
-		std::cout << "vertex Count:" << OutVertexNum << std::endl;
+		//std::cout << "vertex Count:" << OutVertexNum << std::endl;
 		return OutVertexNum;
 	}
 
-	Varing Renderer::VaringLerp(Varing v0, Varing v1, float ratio, Plane plane) {
+	Varing Renderer::LerpVaring(Varing v0, Varing v1, float ratio, Plane plane) {
 		Varing vOut;
-		vOut.ClipPos.x() = v0.ClipPos.x() + ratio * (v1.ClipPos.x() - v0.ClipPos.x());
-		vOut.ClipPos.y() = v0.ClipPos.y() + ratio * (v1.ClipPos.y() - v0.ClipPos.y());
-		vOut.ClipPos.z() = v0.ClipPos.z() + ratio * (v1.ClipPos.z() - v0.ClipPos.z());
-		vOut.ClipPos.w() = v0.ClipPos.w() + ratio * (v1.ClipPos.w() - v0.ClipPos.w());
+		vOut.ClipPos = v0.ClipPos + ratio * (v1.ClipPos - v0.ClipPos);
 		return vOut;
 	}
 
@@ -400,11 +457,11 @@ namespace LittleSGR {
 		case LittleSGR::Renderer::Plane::Z_FAR:
 			return varing.ClipPos.z() - varing.ClipPos.w() <= epsilon;
 		case LittleSGR::Renderer::Plane::NEGATIVE_X:
-			return varing.ClipPos.x() + varing.ClipPos.w() >= epsilon;
+			return varing.ClipPos.x() + varing.ClipPos.w() >= -epsilon;
 		case LittleSGR::Renderer::Plane::NEGATIVE_Y:
-			return varing.ClipPos.y() + varing.ClipPos.w() >= epsilon;
+			return varing.ClipPos.y() + varing.ClipPos.w() >= -epsilon;
 		case LittleSGR::Renderer::Plane::Z_NEAR:
-			return varing.ClipPos.z() + varing.ClipPos.w() >= epsilon;
+			return varing.ClipPos.z() + varing.ClipPos.w() >= -epsilon;
 		}
 	}
 

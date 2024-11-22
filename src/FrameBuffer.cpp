@@ -35,7 +35,7 @@ namespace LittleSGR {
 	}
 	void FrameBuffer::SetColorbuffer(const int x, const int y, const Vector3f rgb) {
 		int i = GetPixelIndex(x, y);
-		std::cout << x << " , " << y << std::endl;
+		//std::cout << x << " , " << y << std::endl;
 		if ((x < 0) || (x >= m_Width) || (y < 0) || (y >= m_Height)) {
 			//ASSERT(0);
 		}

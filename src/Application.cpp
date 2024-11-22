@@ -33,14 +33,9 @@ namespace LittleSGR {
 		Uniform uniform;
 		vTriangle[0].ModelPos = { -10.0f, 10.0f, -10.0f, 1.0f };
 		vTriangle[1].ModelPos = { -10.0f, -10.0f, -10.0f, 1.0f };
-		vTriangle[2].ModelPos = { 30.0f, -10.0f, -10.0f, 1.0f };
+		vTriangle[2].ModelPos = { 30.0f, -8.0f, -10.0f, 1.0f };
 
 		Renderer::Draw(fb, vTriangle, uniform);
-
-		fb.SetColorbuffer(100, 100, Vector3f(1.0f,1.0f,1.0f));
-		fb.SetColorbuffer(99, 99, Vector3f(1.0f,1.0f,1.0f));
-		fb.SetColorbuffer(99, 100, Vector3f(1.0f,1.0f,1.0f));
-		fb.SetColorbuffer(100, 99, Vector3f(1.0f,1.0f,1.0f));
 
 		m_Window->DrawFrameBuffer(fb);
 
